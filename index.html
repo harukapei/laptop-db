@@ -513,60 +513,23 @@ function sv(v){view=v;document.getElementById('vT').classList.toggle('on',v==='t
 function parseQuery(raw){
   let q=raw.toLowerCase();
   const rules=[];
-
-  // Weight: 2kg以下 / 1.5公斤以下 / 2000g以下
   q=q.replace(/(\d+(?:\.\d+)?)\s*(?:kg|公斤)以下/g,(_,n)=>{rules.push({type:'maxW',val:parseFloat(n)*1000});return'';});
   q=q.replace(/(\d+)\s*g以下/g,(_,n)=>{rules.push({type:'maxW',val:parseFloat(n)});return'';});
-
-  // Screen: 18吋 / 14吋 / 16" / 15.6吋
   q=q.replace(/(\d+(?:\.\d+)?)\s*(?:吋|")/g,(_,n)=>{rules.push({type:'inch',val:parseFloat(n)});return'';});
-
-  // Battery: 86wh以上 / 電池86以上
   q=q.replace(/(\d+)\s*wh以上/g,(_,n)=>{rules.push({type:'minB',val:parseFloat(n)});return'';});
-
-  // GPU
   if(/獨立顯卡|獨顯|dgpu/.test(q)){rules.push({type:'gpu',val:'dGPU'});q=q.replace(/獨立顯卡|獨顯|dgpu/g,'');}
   if(/內顯|內建顯卡|igpu/.test(q)){rules.push({type:'gpu',val:'iGPU'});q=q.replace(/內顯|內建顯卡|igpu/g,'');}
-
-  // Segment
-  if(/工作站|mobile ws/.test(q)){rules.push({type:'seg',val:['Commercial','Mobile WS']});q=q.replace(/工作站|mobile ws/g,'');}
+  if(/工作站|mobile\s*ws/.test(q)){rules.push({type:'seg',val:['Commercial','Mobile WS']});q=q.replace(/工作站|mobile\s*ws/g,'');}
   if(/商用/.test(q)){rules.push({type:'seg',val:['Commercial']});q=q.replace(/商用/g,'');}
   if(/電競|gaming/.test(q)){rules.push({type:'seg',val:['Gaming']});q=q.replace(/電競|gaming/g,'');}
-
-  // Status
   if(/在售/.test(q)){rules.push({type:'status',val:'在售'});q=q.replace(/在售/g,'');}
   if(/停售/.test(q)){rules.push({type:'status',val:'停售/改名'});q=q.replace(/停售/g,'');}
-
-  // Brand
   ['dell','hp','lenovo'].forEach(b=>{if(q.includes(b)){rules.push({type:'brand',val:b});q=q.replace(new RegExp(b,'g'),'');}});
-
-  // Form
   if(/2-in-1|二合一/.test(q)){rules.push({type:'form',val:'2-in-1'});q=q.replace(/2-in-1|二合一/g,'');}
-
-  // OLED
   if(/oled/.test(q)){rules.push({type:'oled'});q=q.replace(/oled/g,'');}
-
-  // Remaining tokens = text keyword search
-  // Remove Chinese connective particles before treating as keywords
-  const STOP=['的','且','和','與','及','也','跟','或','有','無','都','很','最','非常','要','想','找'];
-  const tokens=q.split(/[\s、，,。]+/).map(t=>t.trim()).filter(t=>t.length>1||/[a-z0-9]/i.test(t)).filter(t=>!STOP.includes(t));
-
+  const STOP=['的','且','和','與','及','也','跟','或','有','無','都','很','最','要','想','找','以下','以上'];
+  const tokens=q.split(/[\s、，,。]+/).map(t=>t.trim()).filter(t=>t.length>=1&&!/^\d+$/.test(t)).filter(t=>!STOP.includes(t));
   return{rules,tokens};
-}
-
-function applyRule(d,rule){
-  switch(rule.type){
-    case'maxW': return pW(d)<=rule.val;
-    case'inch': return parseFloat(d.screen_size||0)===rule.val;
-    case'minB': return pB(d)>=rule.val;
-    case'gpu':  return d.gpu_type&&d.gpu_type.includes(rule.val);
-    case'seg':  return rule.val.includes(d.segment);
-    case'status':return d.status===rule.val;
-    case'brand':return d.brand.toLowerCase()===rule.val;
-    case'form': return d.form_factor===rule.val;
-    case'oled': return d.display_type&&d.display_type.toUpperCase().includes('OLED');
-  }
-  return true;
 }
 // ─────────────────────────────────────────────────────────
 
