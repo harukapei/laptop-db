@@ -228,7 +228,7 @@ input[type=checkbox]{cursor:pointer;width:14px;height:14px;accent-color:var(--ac
       <span class="sf-title">快速搜尋</span>
       <div class="search-wrap">
         <svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/></svg>
-        <input class="sbox" id="sbox" placeholder="型號、系列、CPU…" oninput="apply()">
+        <input class="sbox" id="sbox" placeholder="型號、系列、CPU… 可輸入多個關鍵字" oninput="apply()">
       </div>
     </div>
 
@@ -333,7 +333,8 @@ input[type=checkbox]{cursor:pointer;width:14px;height:14px;accent-color:var(--ac
       <button class="sbtn" id="sb1" onclick="setSort('weight_g')">最低重量</button>
       <button class="sbtn" id="sb2" onclick="setSort('battery_wh')">最高電池</button>
       <button class="sbtn" id="sb3" onclick="setSort('screen_size')">螢幕尺寸</button>
-      <button class="sbtn" id="sb4" onclick="setSort('last_verified')">最後更新</button>
+      <button class="sbtn" id="sb4" onclick="setSort('thickness_mm')">厚度最薄</button>
+      <button class="sbtn" id="sb5" onclick="setSort('last_verified')">最後更新</button>
       <div class="view-toggle">
         <button class="vbtn on" id="vTbl" onclick="setView('table')">表格</button>
         <button class="vbtn" id="vCrd" onclick="setView('card')">卡片</button>
@@ -387,10 +388,14 @@ let activePreset=null;
 
 const PRESETS=[
   {id:'light',label:'⚡ 輕薄 <1.5kg',fn:d=>parseMinW(d.weight_g)<1500&&d.status==='在售'},
+  {id:'under2kg',label:'🏋 2kg以下',fn:d=>parseMinW(d.weight_g)<2000},
+  {id:'dgpu',label:'🖥 有獨立顯卡',fn:d=>d.gpu_type&&d.gpu_type.includes('dGPU')},
+  {id:'commercial',label:'💼 工作站等級',fn:d=>d.segment==='Commercial'||d.segment==='Mobile WS'},
+  {id:'big18',label:'📺 18吋大螢幕',fn:d=>d.screen_size&&parseFloat(d.screen_size)>=18},
+  {id:'big18dgpu',label:'📺🖥 18吋+獨顯',fn:d=>d.screen_size&&parseFloat(d.screen_size)>=18&&d.gpu_type&&d.gpu_type.includes('dGPU')},
   {id:'batt',label:'🔋 長電池 ≥86Wh',fn:d=>parseMaxB(d.battery_wh)>=86},
-  {id:'gaming',label:'🎮 電競機種',fn:d=>d.segment==='Gaming'},
   {id:'oled',label:'✨ OLED螢幕',fn:d=>d.display_type&&d.display_type.toUpperCase().includes('OLED')},
-  {id:'dgpu',label:'🖥 獨立顯卡',fn:d=>d.gpu_type&&d.gpu_type.includes('dGPU')},
+  {id:'gaming',label:'🎮 電競機種',fn:d=>d.segment==='Gaming'},
   {id:'2in1',label:'🔄 2-in-1',fn:d=>d.form_factor==='2-in-1'},
 ];
 
@@ -468,8 +473,8 @@ function resetAll(){
 function onWSlide(){const v=+document.getElementById('wSlider').value;F.maxW=v;document.getElementById('wLabel').textContent=v>=4500?'不限':v+'g';apply();}
 function onBSlide(){const v=+document.getElementById('bSlider').value;F.minB=v;document.getElementById('bLabel').textContent=v<=0?'不限':v+'Wh';apply();}
 
-let sortBtns=['sb0','sb1','sb2','sb3','sb4'];
-let sortKeys=['brand','weight_g','battery_wh','screen_size','last_verified'];
+let sortBtns=['sb0','sb1','sb2','sb3','sb4','sb5'];
+let sortKeys=['brand','weight_g','battery_wh','screen_size','thickness_mm','last_verified'];
 function setSort(k){
   const idx=sortKeys.indexOf(k);
   if(sortC===k){sortD*=-1;}else{sortC=k;sortD=1;}
@@ -498,7 +503,11 @@ function apply(){
     if(F.segment.length&&!F.segment.includes(d.segment))return false;
     if(F.maxW<4500){const mw=parseMinW(d.weight_g);if(mw>F.maxW)return false;}
     if(F.minB>0){const mb=parseMaxB(d.battery_wh);if(mb<F.minB)return false;}
-    if(F.search){const h=[d.brand,d.series,d.model,d.cpu_platform,d.gpu_type,d.generation,d.segment].join(' ').toLowerCase();if(!h.includes(F.search))return false;}
+    if(F.search){
+      const h=[d.brand,d.series,d.model,d.cpu_platform,d.gpu_type,d.generation,d.segment,d.display_type,d.dgpu_model,d.screen_size,d.region,d.status].join(' ').toLowerCase();
+      const tokens=F.search.split(/\s+/).filter(Boolean);
+      if(!tokens.every(t=>h.includes(t)))return false;
+    }
     if(preset&&!preset.fn(d))return false;
     return true;
   });
@@ -507,6 +516,7 @@ function apply(){
     if(sortC==='weight_g'){av=parseMinW(a.weight_g);bv=parseMinW(b.weight_g);return(av-bv)*sortD;}
     if(sortC==='battery_wh'){av=parseMaxB(a.battery_wh);bv=parseMaxB(b.battery_wh);return(bv-av)*sortD;}
     if(sortC==='screen_size'){av=parseFloat(av)||0;bv=parseFloat(bv)||0;return(av-bv)*sortD;}
+    if(sortC==='thickness_mm'){av=parseFloat(String(a.thickness_mm).replace(/[^0-9.]/g,''))||999;bv=parseFloat(String(b.thickness_mm).replace(/[^0-9.]/g,''))||999;return(av-bv)*sortD;}
     if(sortC==='brand'){const bs=a.brand+a.series,bs2=b.brand+b.series;return bs.localeCompare(bs2,'zh')*sortD;}
     return String(av).localeCompare(String(bv),'zh')*sortD;
   });
@@ -598,7 +608,7 @@ function selItem(i){
   function r(l,v){if(!v||v==='—'||v==='')return'';return`<div class="dp-row"><span class="dp-k">${esc(l)}</span><span class="dp-v">${esc(String(v))}</span></div>`;}
   document.getElementById('dpBdy').innerHTML=`
     <div class="dp-sec"><div class="dp-sec-t">螢幕</div>${r('尺寸',d.screen_size)}${r('種類',d.display_type)}${r('解析度',d.resolution)}${r('Form Factor',d.form_factor)}</div>
-    <div class="dp-sec"><div class="dp-sec-t">效能</div>${r('CPU',d.cpu_platform)}${r('GPU',d.gpu_type)}${r('dGPU型號',d.dgpu_model)}</div>
+    <div class="dp-sec"><div class="dp-sec-t">效能</div>${r('CPU平台',d.cpu_platform)}${r('顯卡類型',d.gpu_type)}${r('獨顯型號',d.dgpu_model||(!d.dgpu_model&&d.gpu_type&&!d.gpu_type.includes('dGPU')?'無獨立顯卡':''))}</div>
     <div class="dp-sec"><div class="dp-sec-t">機身</div>${r('重量',d.weight_g?d.weight_g+' g':'')}${r('寬度',d.width_mm?d.width_mm+' mm':'')}${r('長度',d.depth_mm?d.depth_mm+' mm':'')}${r('厚度',d.thickness_mm?d.thickness_mm+' mm':'')}</div>
     <div class="dp-sec"><div class="dp-sec-t">電力・周邊</div>${r('電池',d.battery_wh?d.battery_wh+' Wh':'')}${r('前鏡頭',d.webcam)}${r('數字鍵區',d.numpad)}${r('左側 I/O',d.io_left)}${r('右側 I/O',d.io_right)}</div>
     <div class="dp-sec"><div class="dp-sec-t">上市資訊</div>${r('上市年份',d.year)}${r('世代',d.generation)}${r('最後核實',d.last_verified)}</div>`;
