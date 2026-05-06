@@ -422,100 +422,124 @@ input[type=checkbox]{cursor:pointer;width:14px;height:14px;accent-color:var(--ac
 <div class="toast" id="toast"></div>
 
 <script>
+
 let ALL=[],FD=[],selIdx=null,view='table',sortC='brand',sortD=1,cmpSet=new Set(),activePresets=new Set();
 const F={q:'',brand:[],screen:[],cpu:[],gpu:[],status:[],region:[],segment:[],form:[],series:''};
 
 const PRESETS=[
-  {id:'p1', icon:'⚡', label:'輕薄 <1.5kg',   fn:d=>pW(d)<1500},
-  {id:'p2', icon:'🏋', label:'2kg以下',        fn:d=>pW(d)<2000},
-  {id:'p3', icon:'🖥', label:'有獨立顯卡',      fn:d=>d.gpu_type&&d.gpu_type.includes('dGPU')},
-  {id:'p4', icon:'💼', label:'工作站等級',      fn:d=>d.segment==='Commercial'||d.segment==='Mobile WS'},
-  {id:'p5', icon:'📺', label:'大螢幕 ≥17吋',   fn:d=>parseFloat(d.screen_size)>=17},
-  {id:'p6', icon:'📺', label:'18吋+獨顯',      fn:d=>parseFloat(d.screen_size)>=18&&d.gpu_type&&d.gpu_type.includes('dGPU')},
-  {id:'p7', icon:'🔋', label:'長電池 ≥86Wh',  fn:d=>pB(d)>=86},
-  {id:'p8', icon:'✨', label:'OLED螢幕',       fn:d=>d.display_type&&d.display_type.toUpperCase().includes('OLED')},
-  {id:'p9', icon:'🎮', label:'電競機種',        fn:d=>d.segment==='Gaming'},
-  {id:'p10',icon:'🔄', label:'2-in-1',         fn:d=>d.form_factor==='2-in-1'},
+  {id:'p1', icon:'⚡', label:'輕薄 <1.5kg',  fn:d=>pW(d)<1500},
+  {id:'p2', icon:'🏋', label:'2kg以下',       fn:d=>pW(d)<2000},
+  {id:'p3', icon:'🖥', label:'有獨立顯卡',     fn:d=>d.gpu_type&&d.gpu_type.includes('dGPU')},
+  {id:'p4', icon:'💼', label:'工作站等級',     fn:d=>d.segment==='Commercial'||d.segment==='Mobile WS'},
+  {id:'p5', icon:'📺', label:'大螢幕 ≥17吋',  fn:d=>parseFloat(d.screen_size)>=17},
+  {id:'p6', icon:'📺', label:'18吋+獨顯',     fn:d=>parseFloat(d.screen_size)>=18&&d.gpu_type&&d.gpu_type.includes('dGPU')},
+  {id:'p7', icon:'🔋', label:'長電池 ≥86Wh', fn:d=>pB(d)>=86},
+  {id:'p8', icon:'✨', label:'OLED螢幕',      fn:d=>d.display_type&&d.display_type.toUpperCase().includes('OLED')},
+  {id:'p9', icon:'🎮', label:'電競機種',       fn:d=>d.segment==='Gaming'},
+  {id:'p10',icon:'🔄', label:'2-in-1',        fn:d=>d.form_factor==='2-in-1'},
 ];
 
-// Helpers
+// ── Helpers ──
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
-function pW(d){const m=String(d.weight_g||'').match(/\d+(?:\.\d+)?/g);return m?Math.min(...m.map(Number)):9999;}
+function pW(d){const m=String(d.weight_g||'').match(/\d+(?:\.\d+)?/g);const n=(m||[]).map(Number).filter(x=>x>100);return n.length?Math.min(...n):9999;}
 function pB(d){const m=String(d.battery_wh||'').match(/\d+(?:\.\d+)?/g);return m?Math.max(...m.map(Number)):0;}
 function pT(d){const m=String(d.thickness_mm||'').match(/\d+(?:\.\d+)?/g);return m?Math.min(...m.map(Number)):999;}
 
-function bTag(b){const c={Dell:'bt-dell',HP:'bt-hp',Lenovo:'bt-lenovo'}[b]||'';return`<span class="bt ${c}">${esc(b)}</span>`;}
-function segTag(s){const c={Consumer:'sc',Gaming:'sg',Commercial:'sb','Mobile WS':'sw2'}[s]||'';return`<span class="seg ${c}">${esc(s)}</span>`;}
-function stsTag(s){const c=s==='在售'?'s-on':s==='即將推出'?'s-soon':'s-off';return`<span class="sts ${c}">${esc(s)}</span>`;}
-function gpuTag(d){
-  if(!d.gpu_type)return'—';
-  if(d.gpu_type.includes('dGPU'))return`<span class="gpu-yes">● ${esc(d.gpu_type)}${d.dgpu_model?' ('+esc(d.dgpu_model)+')':''}</span>`;
-  return`<span class="gpu-no">${esc(d.gpu_type)}</span>`;
+// ── Tags ──
+function bTag(b){const c={Dell:'bt-dell',HP:'bt-hp',Lenovo:'bt-lenovo'}[b]||'';return'<span class="bt '+c+'">'+esc(b)+'</span>';}
+function segTag(s){const c={Consumer:'sc',Gaming:'sg',Commercial:'sb','Mobile WS':'sw2'}[s]||'';return'<span class="seg '+c+'">'+esc(s)+'</span>';}
+function stsTag(s){const c=s==='在售'?'s-on':s==='即將推出'?'s-soon':'s-off';return'<span class="sts '+c+'">'+esc(s)+'</span>';}
+
+// ── Smart search parser ──
+function parseQuery(raw){
+  let q=raw.toLowerCase();
+  const rules=[];
+  q=q.replace(/(\d+(?:\.\d+)?)\s*(?:kg|公斤)以下/g,function(_,n){rules.push({type:'maxW',val:parseFloat(n)*1000});return'';});
+  q=q.replace(/(\d+)\s*g以下/g,function(_,n){rules.push({type:'maxW',val:parseFloat(n)});return'';});
+  q=q.replace(/(\d+(?:\.\d+)?)\s*吋/g,function(_,n){rules.push({type:'inch',val:parseFloat(n)});return'';});
+  q=q.replace(/(\d+)\s*wh以上/g,function(_,n){rules.push({type:'minB',val:parseFloat(n)});return'';});
+  if(/獨立顯卡|獨顯|dgpu/.test(q)){rules.push({type:'gpu',val:'dGPU'});q=q.replace(/獨立顯卡|獨顯|dgpu/g,'');}
+  if(/內顯|內建顯卡|igpu/.test(q)){rules.push({type:'gpu',val:'iGPU'});q=q.replace(/內顯|內建顯卡|igpu/g,'');}
+  if(/工作站/.test(q)){rules.push({type:'seg',val:['Commercial','Mobile WS']});q=q.replace(/工作站/g,'');}
+  if(/商用/.test(q)){rules.push({type:'seg',val:['Commercial']});q=q.replace(/商用/g,'');}
+  if(/電競/.test(q)){rules.push({type:'seg',val:['Gaming']});q=q.replace(/電競/g,'');}
+  if(/在售/.test(q)){rules.push({type:'status',val:'在售'});q=q.replace(/在售/g,'');}
+  if(/停售/.test(q)){rules.push({type:'status',val:'停售/改名'});q=q.replace(/停售/g,'');}
+  ['dell','hp','lenovo'].forEach(function(b){if(q.includes(b)){rules.push({type:'brand',val:b});q=q.replace(new RegExp(b,'g'),'');}});
+  if(/oled/.test(q)){rules.push({type:'oled'});q=q.replace(/oled/g,'');}
+  var STOP=['的','且','和','與','及','也','跟','或','以下','以上'];
+  var tokens=q.split(/[\s、，,。]+/).map(function(t){return t.trim();}).filter(function(t){return t.length>=1&&!/^\d+$/.test(t)&&!STOP.includes(t);});
+  return{rules:rules,tokens:tokens};
+}
+function applyRule(d,rule){
+  switch(rule.type){
+    case 'maxW': return pW(d)<=rule.val;
+    case 'inch': return Math.floor(parseFloat(d.screen_size||0))===Math.floor(rule.val);
+    case 'minB': return pB(d)>=rule.val;
+    case 'gpu':  return d.gpu_type&&d.gpu_type.includes(rule.val);
+    case 'seg':  return rule.val.includes(d.segment);
+    case 'status': return d.status===rule.val;
+    case 'brand': return d.brand.toLowerCase()===rule.val;
+    case 'oled': return d.display_type&&d.display_type.toUpperCase().includes('OLED');
+  }
+  return true;
 }
 
-// INIT
+// ── Init ──
 fetch('data.json')
-  .then(r=>{if(!r.ok)throw new Error(r.status);return r.json();})
-  .then(d=>{
+  .then(function(r){if(!r.ok)throw new Error(r.status);return r.json();})
+  .then(function(d){
     ALL=d;
     document.getElementById('hTotal').textContent=ALL.length;
     document.getElementById('ls').style.display='none';
     initUI(); apply();
   })
-  .catch(e=>document.getElementById('ls').innerHTML='<div style="color:#f87171;padding:20px;font-size:14px">資料載入失敗：'+e.message+'</div>');
+  .catch(function(e){document.getElementById('ls').innerHTML='<div style="color:#f87171;padding:20px;font-size:14px">資料載入失敗：'+e.message+'</div>';});
 
 function initUI(){
-  // pills
-  mkPills('brandP','brand',['Dell','HP','Lenovo'],v=>({Dell:'pd',HP:'ph',Lenovo:'pl'}[v]||''));
-  // Integer-grouped screen sizes (e.g. "13" matches 13", 13.3" etc.)
-  const allInches=[...new Set(ALL.map(d=>parseFloat(d.screen_size)||0).filter(v=>v>0))];
-  const intSizes=[...new Set(allInches.map(v=>Math.floor(v)))].sort((a,b)=>a-b);
-  document.getElementById('screenP').innerHTML=intSizes.map(v=>
-    `<div class="pill" onclick="togScreenSize(this,${v})">${v}"</div>`
-  ).join('');
-  mkPills('cpuP','cpu',['Intel','AMD','Qualcomm']);
-  mkPillsMap('gpuP','gpu',[
-    {label:'iGPU / 內顯', val:'iGPU'},
-    {label:'dGPU / 獨顯', val:'dGPU'},
-    {label:'iGPU + dGPU', val:'iGPU/dGPU'},
-  ]);
-  mkPills('statusP','status',['在售','即將推出']);
-  mkPills('regionP','region',['TW','TW/US','US']);
-  mkPills('segP','segment',['Consumer','Gaming','Commercial','Mobile WS']);
-  mkPills('formP','form',['Clamshell','2-in-1']);
-  // series
-  const sel=document.getElementById('seriesSel');
-  [...new Set(ALL.map(d=>d.series).filter(Boolean))].sort().forEach(s=>{
-    const o=document.createElement('option');o.value=s;o.textContent=s;sel.appendChild(o);
-  });
-  // presets
-  document.getElementById('presets').innerHTML=PRESETS.map(p=>
-    `<div class="preset" id="${p.id}" onclick="togPreset('${p.id}')">${p.icon} ${esc(p.label)}</div>`
-  ).join('');
+  mkPills('brandP','brand',['Dell','HP','Lenovo'],function(v){return {Dell:'pd',HP:'ph',Lenovo:'pl'}[v]||'';});
+  updateSeriesDropdown();
+  // Screen: integer sizes only
+  var allInches=[...new Set(ALL.map(function(d){return Math.floor(parseFloat(d.screen_size)||0);}).filter(function(v){return v>0;}))].sort(function(a,b){return a-b;});
+  document.getElementById('screenP').innerHTML=allInches.map(function(v){
+    return '<div class="pill" onclick="togScreen(this,'+v+')">' + v + '"</div>';
+  }).join('');
+  // GPU with labels
+  var gpuItems=[{label:'iGPU / 內顯',val:'iGPU'},{label:'dGPU / 獨顯',val:'dGPU'},{label:'iGPU + dGPU',val:'iGPU/dGPU'}];
+  document.getElementById('gpuP').innerHTML=gpuItems.map(function(item){
+    return '<div class="pill" data-val="'+item.val+'" onclick="togGpu(this,\''+item.val+'\')">'+item.label+'</div>';
+  }).join('');
+  mkPills('cpuP','cpu',['Intel','AMD','Qualcomm'],null);
+  mkPills('statusP','status',['在售','即將推出'],null);
+  mkPills('regionP','region',['TW','TW/US','US'],null);
+  mkPills('segP','segment',['Consumer','Gaming','Commercial','Mobile WS'],null);
+  mkPills('formP','form',['Clamshell','2-in-1'],null);
+  // Presets
+  document.getElementById('presets').innerHTML=PRESETS.map(function(p){
+    return '<div class="preset" id="'+p.id+'" onclick="togPreset(\''+p.id+'\')">'+p.icon+' '+esc(p.label)+'</div>';
+  }).join('');
 }
 
-function mkPillsMap(id,key,items){
-  document.getElementById(id).innerHTML=items.map(({label,val})=>
-    `<div class="pill" data-val="${val}" onclick="togPillVal(this,'${key}','${val.replace(/'/g,\"\\'\"')}')">${label}</div>`
-  ).join('');
+function mkPills(id,key,vals,clsFn){
+  document.getElementById(id).innerHTML=vals.map(function(v){
+    var cls=clsFn?clsFn(v):'';
+    return '<div class="pill '+cls+'" onclick="togPill(this,\''+key+'\',\''+v.replace(/'/g,"\\'")+'\')">' + esc(v) + '</div>';
+  }).join('');
 }
-function togPillVal(el,key,val){
-  const a=F[key],i=a.indexOf(val);
+function togPill(el,key,val){
+  var a=F[key],i=a.indexOf(val);
   if(i===-1){a.push(val);el.classList.add('on');}else{a.splice(i,1);el.classList.remove('on');}
+  if(key==='brand')updateSeriesDropdown();
   apply();
 }
-function mkPills(id,key,vals,cls){
-  document.getElementById(id).innerHTML=vals.map(v=>`<div class="pill ${cls?cls(v):''}" onclick="togPill(this,'${key}','${esc(v)}')">${esc(v)}</div>`).join('');
-}
-function togScreenSize(el,inch){
-  const i=F.screen.indexOf(inch);
+function togScreen(el,inch){
+  var i=F.screen.indexOf(inch);
   if(i===-1){F.screen.push(inch);el.classList.add('on');}else{F.screen.splice(i,1);el.classList.remove('on');}
   apply();
 }
-function togPill(el,key,val){
-  const a=F[key],i=a.indexOf(val);
-  if(i===-1){a.push(val);el.classList.add('on');}else{a.splice(i,1);el.classList.remove('on');}
-  if(key==='brand')updateSeriesDropdown();
+function togGpu(el,val){
+  var i=F.gpu.indexOf(val);
+  if(i===-1){F.gpu.push(val);el.classList.add('on');}else{F.gpu.splice(i,1);el.classList.remove('on');}
   apply();
 }
 function togPreset(id){
@@ -523,102 +547,86 @@ function togPreset(id){
   else{activePresets.add(id);document.getElementById(id).classList.add('on');}
   apply();
 }
+function updateSeriesDropdown(){
+  var sel=document.getElementById('seriesSel');
+  var prev=sel.value;
+  sel.innerHTML='<option value="">全部系列</option>';
+  var brands=F.brand.length?F.brand:null;
+  var src=brands?ALL.filter(function(d){return brands.includes(d.brand);}):ALL;
+  var series=[...new Set(src.map(function(d){return d.series;}).filter(Boolean))].sort();
+  series.forEach(function(s){var o=document.createElement('option');o.value=s;o.textContent=s;sel.appendChild(o);});
+  if(series.includes(prev))sel.value=prev;
+}
 function resetAll(){
-  Object.keys(F).forEach(k=>Array.isArray(F[k])?F[k]=[]:typeof F[k]==='number'?null:F[k]='');
-  F.maxW=4500;F.minB=0;F.q='';F.series='';
+  Object.keys(F).forEach(function(k){if(Array.isArray(F[k]))F[k]=[];else F[k]='';});
   document.getElementById('sbox').value='';
-  ['wMinG','wMaxG','wMinKg','wMaxKg'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('pMin').value='';document.getElementById('pMax').value='';
+  ['wMinG','wMaxG','wMinKg','wMaxKg','pMin','pMax'].forEach(function(id){document.getElementById(id).value='';});
   document.getElementById('seriesSel').value='';
-  document.querySelectorAll('.pill.on').forEach(p=>p.classList.remove('on'));F.screen=[];updateSeriesDropdown();
-  activePresets.forEach(id=>{const el=document.getElementById(id);if(el)el.classList.remove('on');});activePresets.clear();
+  document.querySelectorAll('.pill.on').forEach(function(p){p.classList.remove('on');});
+  activePresets.forEach(function(id){var el=document.getElementById(id);if(el)el.classList.remove('on');});
+  activePresets.clear();
+  updateSeriesDropdown();
   apply();
 }
 
-
-// SORT
-const SORT_BTNS=['sb0','sb1','sb2','sb3','sb4','sb5'];
-const SORT_KEYS=['brand','weight_g','battery_wh','thickness_mm','screen_size','last_verified'];
+// ── Sort ──
+var SORT_BTNS=['sb0','sb1','sb2','sb3','sb4','sb5'];
+var SORT_KEYS=['brand','weight_g','battery_wh','thickness_mm','screen_size','last_verified'];
 function ss(k){
   if(sortC===k)sortD*=-1;else{sortC=k;sortD=1;}
-  SORT_BTNS.forEach((id,i)=>{
-    const el=document.getElementById(id);
-    const on=SORT_KEYS[i]===k;
+  SORT_BTNS.forEach(function(id,i){
+    var el=document.getElementById(id);
+    var on=SORT_KEYS[i]===k;
     el.className='sbtn'+(on?' on':'')+((on&&sortD===1)?' asc':'')+((on&&sortD===-1)?' desc':'');
   });
   apply();
 }
 function sv(v){view=v;document.getElementById('vT').classList.toggle('on',v==='table');document.getElementById('vC').classList.toggle('on',v==='card');render();}
 
-// FILTER
-// ── Smart query parser ──────────────────────────────────
-function parseQuery(raw){
-  let q=raw.toLowerCase();
-  const rules=[];
-  q=q.replace(/(\d+(?:\.\d+)?)\s*(?:kg|公斤)以下/g,(_,n)=>{rules.push({type:'maxW',val:parseFloat(n)*1000});return'';});
-  q=q.replace(/(\d+)\s*g以下/g,(_,n)=>{rules.push({type:'maxW',val:parseFloat(n)});return'';});
-  q=q.replace(/(\d+(?:\.\d+)?)\s*(?:吋|")/g,(_,n)=>{rules.push({type:'inch',val:parseFloat(n)});return'';});
-  q=q.replace(/(\d+)\s*wh以上/g,(_,n)=>{rules.push({type:'minB',val:parseFloat(n)});return'';});
-  if(/獨立顯卡|獨顯|dgpu/.test(q)){rules.push({type:'gpu',val:'dGPU'});q=q.replace(/獨立顯卡|獨顯|dgpu/g,'');}
-  if(/內顯|內建顯卡|igpu/.test(q)){rules.push({type:'gpu',val:'iGPU'});q=q.replace(/內顯|內建顯卡|igpu/g,'');}
-  if(/工作站|mobile\s*ws/.test(q)){rules.push({type:'seg',val:['Commercial','Mobile WS']});q=q.replace(/工作站|mobile\s*ws/g,'');}
-  if(/商用/.test(q)){rules.push({type:'seg',val:['Commercial']});q=q.replace(/商用/g,'');}
-  if(/電競|gaming/.test(q)){rules.push({type:'seg',val:['Gaming']});q=q.replace(/電競|gaming/g,'');}
-  if(/在售/.test(q)){rules.push({type:'status',val:'在售'});q=q.replace(/在售/g,'');}
-  if(/停售/.test(q)){rules.push({type:'status',val:'停售/改名'});q=q.replace(/停售/g,'');}
-  ['dell','hp','lenovo'].forEach(b=>{if(q.includes(b)){rules.push({type:'brand',val:b});q=q.replace(new RegExp(b,'g'),'');}});
-  if(/2-in-1|二合一/.test(q)){rules.push({type:'form',val:'2-in-1'});q=q.replace(/2-in-1|二合一/g,'');}
-  if(/oled/.test(q)){rules.push({type:'oled'});q=q.replace(/oled/g,'');}
-  const STOP=['的','且','和','與','及','也','跟','或','有','無','都','很','最','要','想','找','以下','以上'];
-  const tokens=q.split(/[\s、，,。]+/).map(t=>t.trim()).filter(t=>t.length>=1&&!/^\d+$/.test(t)).filter(t=>!STOP.includes(t));
-  return{rules,tokens};
-}
-// ─────────────────────────────────────────────────────────
-
+// ── Filter ──
 function apply(){
-  const rawQ=document.getElementById('sbox').value.trim();
+  var rawQ=document.getElementById('sbox').value.trim();
   F.q=rawQ.toLowerCase();
   F.series=document.getElementById('seriesSel').value;
-  const selectedPresets=PRESETS.filter(p=>activePresets.has(p.id));
-  const {rules,tokens}=parseQuery(rawQ);
+  var parsed=parseQuery(rawQ);
+  var rules=parsed.rules, tokens=parsed.tokens;
+  var selectedPresets=PRESETS.filter(function(p){return activePresets.has(p.id);});
 
-  FD=ALL.filter(d=>{
-    // 預設隱藏停售/改名，除非使用者明確勾選
+  var wMinG=parseFloat(document.getElementById('wMinG').value)||0;
+  var wMaxG=parseFloat(document.getElementById('wMaxG').value)||0;
+  var wMinKg=parseFloat(document.getElementById('wMinKg').value)||0;
+  var wMaxKg=parseFloat(document.getElementById('wMaxKg').value)||0;
+  var wLo=wMinKg>0?wMinKg*1000:wMinG;
+  var wHi=wMaxKg>0?wMaxKg*1000:wMaxG;
+  var pMin=parseInt(document.getElementById('pMin').value)||0;
+  var pMax=parseInt(document.getElementById('pMax').value)||0;
+
+  FD=ALL.filter(function(d){
     if(!F.status.length&&d.status==='停售/改名')return false;
     if(F.brand.length&&!F.brand.includes(d.brand))return false;
     if(F.series&&d.series!==F.series)return false;
-    if(F.screen.length&&!F.screen.some(s=>Math.floor(parseFloat(d.screen_size||0))===s))return false;
-    if(F.cpu.length&&!F.cpu.some(c=>d.cpu_platform&&d.cpu_platform.includes(c)))return false;
+    if(F.screen.length&&!F.screen.some(function(s){return Math.floor(parseFloat(d.screen_size||0))===s;}))return false;
+    if(F.cpu.length&&!F.cpu.some(function(c){return d.cpu_platform&&d.cpu_platform.includes(c);}))return false;
     if(F.gpu.length&&!F.gpu.includes(d.gpu_type))return false;
     if(F.status.length&&!F.status.includes(d.status))return false;
     if(F.region.length&&!F.region.includes(d.region))return false;
     if(F.segment.length&&!F.segment.includes(d.segment))return false;
     if(F.form.length&&!F.form.includes(d.form_factor))return false;
-    const wMinG=parseFloat(document.getElementById('wMinG').value)||0;
-    const wMaxG=parseFloat(document.getElementById('wMaxG').value)||0;
-    const wMinKg=parseFloat(document.getElementById('wMinKg').value)||0;
-    const wMaxKg=parseFloat(document.getElementById('wMaxKg').value)||0;
-    const wLo=wMinKg>0?wMinKg*1000:(wMinG||0);
-    const wHi=wMaxKg>0?wMaxKg*1000:(wMaxG||0);
-    const pMin=parseInt(document.getElementById('pMin').value)||0;
-    const pMax=parseInt(document.getElementById('pMax').value)||0;
     if(wLo>0&&pW(d)<wLo)return false;
     if(wHi>0&&pW(d)>wHi)return false;
-    if(pMin>0){const p=parseInt(String(d.price_tw).replace(/[^0-9]/g,''))||0;if(p>0&&p<pMin)return false;}
-    if(pMax>0){const p=parseInt(String(d.price_tw).replace(/[^0-9]/g,''))||0;if(p>0&&p>pMax)return false;}
-    // Smart rules (from typed query)
-    if(rules.length&&!rules.every(r=>applyRule(d,r)))return false;
-    // Remaining text tokens
+    if(pMin>0){var p=parseInt(String(d.price_tw).replace(/[^0-9]/g,''))||0;if(p>0&&p<pMin)return false;}
+    if(pMax>0){var p2=parseInt(String(d.price_tw).replace(/[^0-9]/g,''))||0;if(p2>0&&p2>pMax)return false;}
+    if(rules.length&&!rules.every(function(r){return applyRule(d,r);}))return false;
     if(tokens.length){
-      const hay=[d.brand,d.series,d.model,d.cpu_platform,d.gpu_type,d.dgpu_model,d.generation,d.display_type,d.screen_size,d.region,d.status].join(' ').toLowerCase();
-      if(!tokens.every(t=>hay.includes(t)))return false;
+      var hay=[d.brand,d.series,d.model,d.cpu_platform,d.gpu_type,d.dgpu_model,d.display_type,d.screen_size,d.region,d.status].join(' ').toLowerCase();
+      if(!tokens.every(function(t){return hay.includes(t);}))return false;
     }
-    if(selectedPresets.length&&!selectedPresets.every(p=>p.fn(d)))return false;
+    if(selectedPresets.length&&!selectedPresets.every(function(p){return p.fn(d);}))return false;
     return true;
   });
 
-  FD.sort((a,b)=>{
-    if(sortC==='brand')return(a.brand+a.series).localeCompare(b.brand+b.series,'zh')*sortD;
+  FD.sort(function(a,b){
+    if(sortC==='brand')return (a.brand+a.series).localeCompare(b.brand+b.series,'zh')*sortD;
     if(sortC==='weight_g')return(pW(a)-pW(b))*sortD;
     if(sortC==='battery_wh')return(pB(b)-pB(a))*sortD;
     if(sortC==='thickness_mm')return(pT(a)-pT(b))*sortD;
@@ -627,193 +635,142 @@ function apply(){
   });
 
   updateStats(); render();
-  // Show empty hint if nothing found
-  if(!FD.length) document.getElementById('mc').innerHTML=`<div class="empty"><div class="empty-i">🔍</div><div class="empty-t">沒有符合條件的資料</div><div style="margin-top:4px;font-size:12px;color:var(--text3)">目前資料庫中無此規格組合的機種</div></div>`;
+  if(!FD.length)document.getElementById('mc').innerHTML='<div class="empty"><div class="empty-i">🔍</div><div class="empty-t">沒有符合條件的資料</div><div>目前資料庫中無此規格組合的機種</div></div>';
 }
 
 function updateStats(){
-  const n=FD.length;
+  var n=FD.length;
   document.getElementById('sCnt').textContent=n;
-  if(!n){
-    ['sBrand','sLight','sBatt'].forEach(id=>document.getElementById(id).textContent='—');
-    ['sBrandSub','sLightSub','sBattSub'].forEach(id=>document.getElementById(id).textContent='');
-    return;
-  }
-  const bc={};FD.forEach(d=>{bc[d.brand]=(bc[d.brand]||0)+1;});
+  if(!n){['sBrand','sLight','sBatt'].forEach(function(id){document.getElementById(id).textContent='—';});['sBrandSub','sLightSub','sBattSub'].forEach(function(id){document.getElementById(id).textContent='';});return;}
+  var bc={};FD.forEach(function(d){bc[d.brand]=(bc[d.brand]||0)+1;});
   document.getElementById('sBrand').textContent=Object.keys(bc).length+'品牌';
-  document.getElementById('sBrandSub').textContent=Object.entries(bc).map(([k,v])=>k+' '+v).join(' · ');
-  const byW=FD.filter(d=>pW(d)<9999).sort((a,b)=>pW(a)-pW(b));
+  document.getElementById('sBrandSub').textContent=Object.entries(bc).map(function(e){return e[0]+' '+e[1];}).join(' · ');
+  var byW=FD.filter(function(d){return pW(d)<9999;}).sort(function(a,b){return pW(a)-pW(b);});
   if(byW.length){document.getElementById('sLight').textContent=pW(byW[0])+'g';document.getElementById('sLightSub').textContent=byW[0].model.substring(0,18);}
   else{document.getElementById('sLight').textContent='—';document.getElementById('sLightSub').textContent='';}
-  const byB=FD.filter(d=>pB(d)>0).sort((a,b)=>pB(b)-pB(a));
+  var byB=FD.filter(function(d){return pB(d)>0;}).sort(function(a,b){return pB(b)-pB(a);});
   if(byB.length){document.getElementById('sBatt').textContent=pB(byB[0])+'Wh';document.getElementById('sBattSub').textContent=byB[0].model.substring(0,18);}
   else{document.getElementById('sBatt').textContent='—';document.getElementById('sBattSub').textContent='';}
 }
 
-// RENDER
+// ── Render ──
 function render(){if(view==='table')renderTbl();else renderCrd();}
 
 function renderTbl(){
   if(!FD.length){renderEmpty();return;}
-  const h=`<tr>
-    <th class="chk"><input type="checkbox" onclick="togAllCmp(this)" title="全選(最多4筆)"></th>
-    <th>品牌</th><th>系列 / 型號</th><th>產品名稱</th>
-    <th>螢幕</th><th>重量</th><th>電池</th><th>CPU / GPU</th><th>I/O 端口</th>
-  </tr>`;
-  const rows=FD.map((d,i)=>{
-    const io=[d.io_left,d.io_right].filter(Boolean).join(' | ');
-    const gpuCell=d.gpu_type&&d.gpu_type.includes('dGPU')
-      ?`<span class="gpu-yes">●獨顯</span> ${esc(d.cpu_platform||'')}`
+  var hdr='<tr><th class="chk"><input type="checkbox" onclick="togAllCmp(this)"></th><th>品牌</th><th>系列 / 型號</th><th>產品名稱</th><th>螢幕</th><th>重量</th><th>電池</th><th>CPU / GPU</th><th>I/O 端口</th></tr>';
+  var rows=FD.map(function(d,i){
+    var io=[d.io_left,d.io_right].filter(Boolean).join(' | ');
+    var gpuCell=d.gpu_type&&d.gpu_type.includes('dGPU')
+      ?'<span class="gpu-yes">●獨顯</span> '+esc(d.cpu_platform||'')
       :esc((d.cpu_platform||'—')+' / '+(d.gpu_type||'—'));
-    return`<tr class="dr${i===selIdx?' sel':''}" onclick="selItem(${i})">
-      <td class="chk"><input type="checkbox" ${cmpSet.has(i)?'checked':''} onclick="event.stopPropagation();togCmp(${i})"></td>
-      <td>${bTag(d.brand)}</td>
-      <td title="${esc(d.series)}">${esc(d.series)}</td>
-      <td title="${esc(d.model)}">${esc(d.model)} ${stsTag(d.status)}</td>
-      <td>${esc(d.screen_size)} <span style="color:var(--text3);font-size:10px">${esc(d.display_type||'')}</span></td>
-      <td>${esc(d.weight_g)||'—'}</td>
-      <td>${esc(d.battery_wh)||'—'}</td>
-      <td title="${esc(d.cpu_platform+' / '+(d.gpu_type||''))}">${gpuCell}</td>
-      <td title="${esc(io)}">${esc(io.substring(0,38)+(io.length>38?'…':''))}</td>
-    </tr>`;
+    return '<tr class="dr'+(i===selIdx?' sel':'')+'" onclick="selItem('+i+')">'
+      +'<td class="chk"><input type="checkbox" '+(cmpSet.has(i)?'checked':'')+' onclick="event.stopPropagation();togCmp('+i+')"></td>'
+      +'<td>'+bTag(d.brand)+'</td>'
+      +'<td title="'+esc(d.series)+'">'+esc(d.series)+'</td>'
+      +'<td title="'+esc(d.model)+'">'+esc(d.model)+' '+stsTag(d.status)+'</td>'
+      +'<td>'+esc(d.screen_size)+' <span style="color:var(--text3);font-size:10px">'+esc(d.display_type||'')+'</span></td>'
+      +'<td>'+esc(d.weight_g||'—')+'</td>'
+      +'<td>'+esc(d.battery_wh||'—')+'</td>'
+      +'<td title="'+esc(d.cpu_platform+' / '+(d.gpu_type||''))+'">'+gpuCell+'</td>'
+      +'<td title="'+esc(io)+'">'+esc(io.substring(0,38)+(io.length>38?'…':''))+'</td>'
+      +'</tr>';
   }).join('');
-  document.getElementById('mc').innerHTML=`<div class="tw"><table><thead>${h}</thead><tbody>${rows}</tbody></table></div>`;
+  document.getElementById('mc').innerHTML='<div class="tw"><table><thead>'+hdr+'</thead><tbody>'+rows+'</tbody></table></div>';
 }
 
 function renderCrd(){
   if(!FD.length){renderEmpty();return;}
-  const cards=FD.map((d,i)=>`
-    <div class="card${i===selIdx?' sel':''}" onclick="selItem(${i})">
-      <input class="card-chk" type="checkbox" ${cmpSet.has(i)?'checked':''} onclick="event.stopPropagation();togCmp(${i})" title="加入比較">
-      <div class="card-top"><div>${bTag(d.brand)} ${segTag(d.segment)}</div><span class="rt">${esc(d.region)}</span></div>
-      <div class="card-mdl">${esc(d.model)}</div>
-      <div class="card-meta">${esc(d.series)} · ${esc(d.screen_size)} · ${stsTag(d.status)}</div>
-      <div class="cst">
-        <div class="cs"><div class="csl">重量</div><div class="csv">${esc(d.weight_g)||'—'}g</div></div>
-        <div class="cs"><div class="csl">電池</div><div class="csv">${esc(d.battery_wh)||'—'}Wh</div></div>
-        <div class="cs"><div class="csl">CPU</div><div class="csv">${esc(d.cpu_platform)||'—'}</div></div>
-        <div class="cs"><div class="csl">顯卡</div><div class="csv${d.gpu_type&&d.gpu_type.includes('dGPU')?' gpu-yes':''}">${esc(d.gpu_type)||'—'}${d.dgpu_model?'<br><small style="font-size:9px">'+esc(d.dgpu_model)+'</small>':''}</div></div>
-      </div>
-      ${d.price_tw?`<div class="card-price">NT$${esc(String(d.price_tw))}</div>`:''}
-    </div>`).join('');
-  document.getElementById('mc').innerHTML=`<div class="cg">${cards}</div>`;
+  var cards=FD.map(function(d,i){
+    return '<div class="card'+(i===selIdx?' sel':'')+'" onclick="selItem('+i+')">'
+      +'<input class="card-chk" type="checkbox" '+(cmpSet.has(i)?'checked':'')+' onclick="event.stopPropagation();togCmp('+i+')" title="加入比較">'
+      +'<div class="card-top"><div>'+bTag(d.brand)+' '+segTag(d.segment)+'</div><span class="rt">'+esc(d.region)+'</span></div>'
+      +'<div class="card-mdl">'+esc(d.model)+'</div>'
+      +'<div class="card-meta">'+esc(d.series)+' · '+esc(d.screen_size)+' · '+stsTag(d.status)+'</div>'
+      +'<div class="cst">'
+      +'<div class="cs"><div class="csl">重量</div><div class="csv">'+esc(d.weight_g||'—')+'g</div></div>'
+      +'<div class="cs"><div class="csl">電池</div><div class="csv">'+esc(d.battery_wh||'—')+'Wh</div></div>'
+      +'<div class="cs"><div class="csl">CPU</div><div class="csv">'+esc(d.cpu_platform||'—')+'</div></div>'
+      +'<div class="cs"><div class="csl">顯卡</div><div class="csv'+(d.gpu_type&&d.gpu_type.includes('dGPU')?' gpu-yes':'')+'">'+esc(d.gpu_type||'—')+'</div></div>'
+      +'</div>'
+      +(d.price_tw?'<div class="card-price">NT$'+esc(String(d.price_tw))+'</div>':'')
+      +'</div>';
+  }).join('');
+  document.getElementById('mc').innerHTML='<div class="cg">'+cards+'</div>';
 }
 
 function renderEmpty(){
-  document.getElementById('mc').innerHTML=`<div class="empty"><div class="empty-i">🔍</div><div class="empty-t">沒有符合條件的資料</div><div>調整品牌、重量、電池或關鍵字後可以再查一次。</div></div>`;
+  document.getElementById('mc').innerHTML='<div class="empty"><div class="empty-i">🔍</div><div class="empty-t">沒有符合條件的資料</div><div>目前資料庫中無此規格組合的機種</div></div>';
 }
 
-// DETAIL PANEL
+// ── Detail Panel ──
 function selItem(i){
-  selIdx=i;const d=FD[i];
-  document.getElementById('dpBrow').innerHTML=bTag(d.brand)+' '+segTag(d.segment)+' '+stsTag(d.status)+' '+`<span class="rt">${esc(d.region)}</span>`;
+  selIdx=i;var d=FD[i];
+  document.getElementById('dpBrow').innerHTML=bTag(d.brand)+' '+segTag(d.segment)+' '+stsTag(d.status)+' <span class="rt">'+esc(d.region)+'</span>';
   document.getElementById('dpMdl').textContent=d.model;
   document.getElementById('dpSer').textContent=d.series+(d.year?' · '+d.year:'');
   document.getElementById('dpPtw').textContent=d.price_tw?'NT$ '+d.price_tw:'—';
   document.getElementById('dpPus').textContent=d.price_us?'US$ '+d.price_us:'';
-
-  const hasGPU=d.gpu_type&&d.gpu_type.includes('dGPU');
-  const gpuVal=hasGPU
-    ?`<span class="dp-v gpu-badge">● 有獨立顯卡${d.dgpu_model?' — '+d.dgpu_model:''}</span>`
-    :`<span class="dp-v no-gpu">無獨立顯卡 (${esc(d.gpu_type||'—')})</span>`;
-
-  function r(l,v,raw){
-    if(!v||v==='—'||v==='')return'';
-    const vHtml=raw||`<span class="dp-v">${esc(String(v))}</span>`;
-    return`<div class="dp-row"><span class="dp-k">${esc(l)}</span>${vHtml}</div>`;
-  }
-  document.getElementById('dpBdy').innerHTML=`
-    <div class="dp-sec">
-      <div class="dp-sec-t">螢幕</div>
-      ${r('尺寸',d.screen_size)}${r('螢幕種類',d.display_type)}${r('解析度',d.resolution)}${r('Form Factor',d.form_factor)}
-    </div>
-    <div class="dp-sec">
-      <div class="dp-sec-t">效能</div>
-      ${r('CPU 平台',d.cpu_platform)}
-      <div class="dp-row"><span class="dp-k">顯示晶片</span>${gpuVal}</div>
-    </div>
-    <div class="dp-sec">
-      <div class="dp-sec-t">機身尺寸</div>
-      ${r('重量',d.weight_g?d.weight_g+' g':'')}${r('厚度',d.thickness_mm?d.thickness_mm+' mm':'')}${r('寬',d.width_mm?d.width_mm+' mm':'')}${r('長',d.depth_mm?d.depth_mm+' mm':'')}
-    </div>
-    <div class="dp-sec">
-      <div class="dp-sec-t">電力・周邊</div>
-      ${r('電池容量',d.battery_wh?d.battery_wh+' Wh':'')}${r('前鏡頭',d.webcam)}${r('數字鍵區',d.numpad)}${r('左側 I/O',d.io_left)}${r('右側 I/O',d.io_right)}
-    </div>
-    <div class="dp-sec">
-      <div class="dp-sec-t">上市資訊</div>
-      ${r('上市年份',d.year)}${r('世代',d.generation)}${r('最後核實',d.last_verified)}
-    </div>`;
-  document.getElementById('dpAct').innerHTML=d.url?`<a href="${esc(d.url)}" target="_blank" rel="noopener" class="dp-link">前往官方網頁 ↗</a>`:'';
+  var hasGPU=d.gpu_type&&d.gpu_type.includes('dGPU');
+  var gpuHtml=hasGPU
+    ?'<span class="dp-v gpu-badge">● 有獨立顯卡'+(d.dgpu_model?' — '+esc(d.dgpu_model):'')+'</span>'
+    :'<span class="dp-v no-gpu">無獨立顯卡 ('+esc(d.gpu_type||'—')+')</span>';
+  function r(l,v){if(!v||v==='—'||v==='')return'';return'<div class="dp-row"><span class="dp-k">'+esc(l)+'</span><span class="dp-v">'+esc(String(v))+'</span></div>';}
+  document.getElementById('dpBdy').innerHTML=
+    '<div class="dp-sec"><div class="dp-sec-t">螢幕</div>'+r('尺寸',d.screen_size)+r('種類',d.display_type)+r('解析度',d.resolution)+r('Form Factor',d.form_factor)+'</div>'
+   +'<div class="dp-sec"><div class="dp-sec-t">效能</div>'+r('CPU 平台',d.cpu_platform)+'<div class="dp-row"><span class="dp-k">顯示晶片</span>'+gpuHtml+'</div></div>'
+   +'<div class="dp-sec"><div class="dp-sec-t">機身</div>'+r('重量',d.weight_g?d.weight_g+' g':'')+r('厚度',d.thickness_mm?d.thickness_mm+' mm':'')+r('寬',d.width_mm?d.width_mm+' mm':'')+r('長',d.depth_mm?d.depth_mm+' mm':'')+'</div>'
+   +'<div class="dp-sec"><div class="dp-sec-t">電力・周邊</div>'+r('電池',d.battery_wh?d.battery_wh+' Wh':'')+r('前鏡頭',d.webcam)+r('數字鍵區',d.numpad)+r('左側 I/O',d.io_left)+r('右側 I/O',d.io_right)+'</div>'
+   +'<div class="dp-sec"><div class="dp-sec-t">上市資訊</div>'+r('上市年份',d.year)+r('世代',d.generation)+r('最後核實',d.last_verified)+'</div>';
+  document.getElementById('dpAct').innerHTML=d.url?'<a href="'+esc(d.url)+'" target="_blank" rel="noopener" class="dp-link">前往官方網頁 ↗</a>':'';
   document.getElementById('dp').classList.add('open');
   render();
 }
 function closeDP(){selIdx=null;document.getElementById('dp').classList.remove('open');render();}
 
-// COMPARE
+// ── Compare ──
 function togCmp(i){
   if(cmpSet.has(i))cmpSet.delete(i);
   else{if(cmpSet.size>=4){showToast('最多比較 4 筆');return;}cmpSet.add(i);}
   updCmpBar();render();
 }
-function togAllCmp(el){
-  if(el.checked)FD.slice(0,4).forEach((_,i)=>cmpSet.add(i));else cmpSet.clear();
-  updCmpBar();render();
-}
+function togAllCmp(el){if(el.checked)FD.slice(0,4).forEach(function(_,i){cmpSet.add(i);});else cmpSet.clear();updCmpBar();render();}
 function clearCmp(){cmpSet.clear();updCmpBar();render();}
 function updCmpBar(){
-  const n=cmpSet.size;
+  var n=cmpSet.size;
   document.getElementById('cmpBar').classList.toggle('show',n>0);
   document.getElementById('cmpCnt').textContent=n;
-  document.getElementById('cmpTags').innerHTML=[...cmpSet].map(i=>`<span class="cmp-tag">${esc((FD[i]?.model||'').substring(0,20))}</span>`).join('');
+  document.getElementById('cmpTags').innerHTML=[...cmpSet].map(function(i){return '<span class="cmp-tag">'+esc((FD[i]&&FD[i].model||'').substring(0,20))+'</span>';}).join('');
 }
 function openCmp(){
-  const items=[...cmpSet].map(i=>FD[i]).filter(Boolean);
+  var items=[...cmpSet].map(function(i){return FD[i];}).filter(Boolean);
   if(!items.length)return;
-  const FIELDS=[
-    ['型號','model'],['品牌','brand'],['系列','series'],['狀態','status'],['市場','region'],['客群','segment'],
-    ['螢幕尺寸','screen_size'],['螢幕種類','display_type'],['解析度','resolution'],['Form Factor','form_factor'],
-    ['CPU平台','cpu_platform'],['GPU類型','gpu_type'],['獨顯型號','dgpu_model'],
-    ['重量(g)','weight_g'],['厚度(mm)','thickness_mm'],['寬度(mm)','width_mm'],['長度(mm)','depth_mm'],
-    ['電池(Wh)','battery_wh'],['前鏡頭','webcam'],['數字鍵區','numpad'],
-    ['左側I/O','io_left'],['右側I/O','io_right'],
-    ['NT$ MSRP','price_tw'],['US$ MSRP','price_us'],['上市年份','year'],['最後核實','last_verified'],
-  ];
-  const hdr='<tr><th>規格項目</th>'+items.map(d=>`<td>${bTag(d.brand)} ${esc(d.model)}</td>`).join('')+'</tr>';
-  const rows=FIELDS.map(([l,k])=>{
-    const isGPU=k==='gpu_type';
-    const cells=items.map(d=>{
-      const v=String(d[k]||'—');
-      if(isGPU&&v.includes('dGPU'))return`<td class="hi">● ${esc(v)}</td>`;
-      return`<td>${esc(v)}</td>`;
-    }).join('');
-    return`<tr><th>${esc(l)}</th>${cells}</tr>`;
+  var FIELDS=[['型號','model'],['品牌','brand'],['系列','series'],['狀態','status'],['市場','region'],['客群','segment'],['螢幕尺寸','screen_size'],['螢幕種類','display_type'],['解析度','resolution'],['Form Factor','form_factor'],['CPU平台','cpu_platform'],['GPU類型','gpu_type'],['獨顯型號','dgpu_model'],['重量(g)','weight_g'],['厚度(mm)','thickness_mm'],['寬度(mm)','width_mm'],['長度(mm)','depth_mm'],['電池(Wh)','battery_wh'],['前鏡頭','webcam'],['數字鍵區','numpad'],['左側I/O','io_left'],['右側I/O','io_right'],['NT$ MSRP','price_tw'],['US$ MSRP','price_us'],['上市年份','year'],['最後核實','last_verified']];
+  var hdr='<tr><th>規格項目</th>'+items.map(function(d){return '<td>'+bTag(d.brand)+' '+esc(d.model)+'</td>';}).join('')+'</tr>';
+  var rows=FIELDS.map(function(fl){
+    var cells=items.map(function(d){var v=String(d[fl[1]]||'—');return v.includes('dGPU')?'<td class="hi">● '+esc(v)+'</td>':'<td>'+esc(v)+'</td>';}).join('');
+    return '<tr><th>'+esc(fl[0])+'</th>'+cells+'</tr>';
   }).join('');
-  document.getElementById('cmpContent').innerHTML=`<table class="cmp-table">${hdr}${rows}</table>`;
+  document.getElementById('cmpContent').innerHTML='<table class="cmp-table"><thead>'+hdr+'</thead><tbody>'+rows+'</tbody></table>';
   document.getElementById('cmpModal').classList.add('open');
 }
 function closeCmp(){document.getElementById('cmpModal').classList.remove('open');}
 
-// SHARE
+// ── Share / Export / Toast ──
 function shareLink(){
-  navigator.clipboard.writeText(location.href).then(()=>{
-    const b=document.getElementById('shareBtn');
-    b.textContent='✓ 連結已複製';b.classList.add('copied');
-    setTimeout(()=>{b.textContent='🔗 分享連結';b.classList.remove('copied');},2000);
-  }).catch(()=>showToast('請手動複製網址列的連結'));
+  navigator.clipboard.writeText(location.href).then(function(){
+    var b=document.getElementById('shareBtn');b.textContent='✓ 連結已複製';b.classList.add('copied');
+    setTimeout(function(){b.textContent='🔗 分享連結';b.classList.remove('copied');},2000);
+  }).catch(function(){showToast('請手動複製網址列的連結');});
 }
-
-// EXPORT
 function exportCSV(){
   if(!FD.length)return;
-  const k=Object.keys(FD[0]);
-  const csv=[k,...FD.map(d=>k.map(kk=>'"'+String(d[kk]||'').replace(/"/g,'""')+'"'))].map(r=>r.join(',')).join('\n');
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'}));
-  a.download='筆電資料庫.csv';a.click();
+  var k=Object.keys(FD[0]);
+  var csv=[k,...FD.map(function(d){return k.map(function(kk){return '"'+String(d[kk]||'').replace(/"/g,'""')+'"';});})].map(function(r){return r.join(',');}).join('\n');
+  var a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'}));a.download='筆電資料庫.csv';a.click();
 }
+function showToast(m){var t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(function(){t.classList.remove('show');},2500);}
 
-function showToast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500);}
 </script>
 </body>
 </html>
