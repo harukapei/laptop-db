@@ -452,7 +452,7 @@ function initUI(){
   mkPills('screenP','screen',sc);
   mkPills('cpuP','cpu',['Intel','AMD','Qualcomm']);
   mkPills('gpuP','gpu',['iGPU','dGPU','iGPU/dGPU']);
-  mkPills('statusP','status',['在售','停售/改名','即將推出']);
+  mkPills('statusP','status',['在售','即將推出']);
   mkPills('regionP','region',['TW','TW/US','US']);
   mkPills('segP','segment',['Consumer','Gaming','Commercial','Mobile WS']);
   mkPills('formP','form',['Clamshell','2-in-1']);
@@ -541,6 +541,8 @@ function apply(){
   const {rules,tokens}=parseQuery(rawQ);
 
   FD=ALL.filter(d=>{
+    // 預設隱藏停售/改名，除非使用者明確勾選
+    if(!F.status.length&&d.status==='停售/改名')return false;
     if(F.brand.length&&!F.brand.includes(d.brand))return false;
     if(F.series&&d.series!==F.series)return false;
     if(F.screen.length&&!F.screen.includes(d.screen_size))return false;
