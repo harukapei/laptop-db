@@ -423,13 +423,13 @@ input[type=checkbox]{cursor:pointer;width:14px;height:14px;accent-color:var(--ac
 
 <script>
 
-let ALL=[],FD=[],selIdx=null,view='table',sortC='brand',sortD=1,cmpSet=new Set(),activePresets=new Set();
+let ALL=[],FD=[],selIdx=null,view='table',sortC='brand',sortD=1,cmpSet=new Set(),activePreset=null;
 const F={q:'',brand:[],screen:[],cpu:[],gpu:[],status:[],region:[],segment:[],form:[],series:''};
 
 const PRESETS=[
   {id:'p1', icon:'⚡', label:'輕薄 <1.5kg',  fn:d=>pW(d)<1500},
   {id:'p2', icon:'🏋', label:'2kg以下',       fn:d=>pW(d)<2000},
-  {id:'p3', icon:'🖥', label:'有獨立顯卡',     fn:d=>d.gpu_type&&d.gpu_type.includes('dGPU')},
+  {id:'p3', icon:'🖥', label:'有獨立顯卡(RTX)', fn:d=>d.gpu_type&&d.gpu_type.includes('dGPU')},
   {id:'p4', icon:'💼', label:'工作站等級',     fn:d=>d.segment==='Commercial'||d.segment==='Mobile WS'},
   {id:'p5', icon:'📺', label:'大螢幕 ≥17吋',  fn:d=>parseFloat(d.screen_size)>=17},
   {id:'p6', icon:'📺', label:'18吋+獨顯',     fn:d=>parseFloat(d.screen_size)>=18&&d.gpu_type&&d.gpu_type.includes('dGPU')},
@@ -458,7 +458,7 @@ function parseQuery(raw){
   q=q.replace(/(\d+)\s*g以下/g,function(_,n){rules.push({type:'maxW',val:parseFloat(n)});return'';});
   q=q.replace(/(\d+(?:\.\d+)?)\s*吋/g,function(_,n){rules.push({type:'inch',val:parseFloat(n)});return'';});
   q=q.replace(/(\d+)\s*wh以上/g,function(_,n){rules.push({type:'minB',val:parseFloat(n)});return'';});
-  if(/獨立顯卡|獨顯|dgpu/.test(q)){rules.push({type:'gpu',val:'dGPU'});q=q.replace(/獨立顯卡|獨顯|dgpu/g,'');}
+  if(/獨立顯卡|獨顯|dgpu|rtx/.test(q)){rules.push({type:'gpu',val:'dGPU'});q=q.replace(/獨立顯卡|獨顯|dgpu|rtx/g,'');}
   if(/內顯|內建顯卡|igpu/.test(q)){rules.push({type:'gpu',val:'iGPU'});q=q.replace(/內顯|內建顯卡|igpu/g,'');}
   if(/工作站/.test(q)){rules.push({type:'seg',val:['Commercial','Mobile WS']});q=q.replace(/工作站/g,'');}
   if(/商用/.test(q)){rules.push({type:'seg',val:['Commercial']});q=q.replace(/商用/g,'');}
@@ -543,8 +543,11 @@ function togGpu(el,val){
   apply();
 }
 function togPreset(id){
-  if(activePresets.has(id)){activePresets.delete(id);document.getElementById(id).classList.remove('on');}
-  else{activePresets.add(id);document.getElementById(id).classList.add('on');}
+  if(activePreset===id){activePreset=null;document.getElementById(id).classList.remove('on');}
+  else{
+    if(activePreset)document.getElementById(activePreset).classList.remove('on');
+    activePreset=id;document.getElementById(id).classList.add('on');
+  }
   apply();
 }
 function updateSeriesDropdown(){
@@ -563,8 +566,7 @@ function resetAll(){
   ['wMinG','wMaxG','wMinKg','wMaxKg','pMin','pMax'].forEach(function(id){document.getElementById(id).value='';});
   document.getElementById('seriesSel').value='';
   document.querySelectorAll('.pill.on').forEach(function(p){p.classList.remove('on');});
-  activePresets.forEach(function(id){var el=document.getElementById(id);if(el)el.classList.remove('on');});
-  activePresets.clear();
+  if(activePreset){var el=document.getElementById(activePreset);if(el)el.classList.remove('on');activePreset=null;}
   updateSeriesDropdown();
   apply();
 }
@@ -590,7 +592,7 @@ function apply(){
   F.series=document.getElementById('seriesSel').value;
   var parsed=parseQuery(rawQ);
   var rules=parsed.rules, tokens=parsed.tokens;
-  var selectedPresets=PRESETS.filter(function(p){return activePresets.has(p.id);});
+  var activePresetObj=activePreset?PRESETS.find(function(p){return p.id===activePreset;}):null;
 
   var wMinG=parseFloat(document.getElementById('wMinG').value)||0;
   var wMaxG=parseFloat(document.getElementById('wMaxG').value)||0;
@@ -621,7 +623,7 @@ function apply(){
       var hay=[d.brand,d.series,d.model,d.cpu_platform,d.gpu_type,d.dgpu_model,d.display_type,d.screen_size,d.region,d.status].join(' ').toLowerCase();
       if(!tokens.every(function(t){return hay.includes(t);}))return false;
     }
-    if(selectedPresets.length&&!selectedPresets.every(function(p){return p.fn(d);}))return false;
+    if(activePresetObj&&!activePresetObj.fn(d))return false;
     return true;
   });
 
