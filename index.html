@@ -275,13 +275,24 @@ input[type=checkbox]{cursor:pointer;width:14px;height:14px;accent-color:var(--ac
     </div>
 
     <div class="sf">
-      <span class="sf-t">重量範圍（g）</span>
-      <div style="display:flex;gap:6px;align-items:center">
-        <input class="range-input" id="wMin" type="number" placeholder="最低" min="0" max="9999" step="50" oninput="apply()">
-        <span style="color:var(--text3);font-size:11px">—</span>
-        <input class="range-input" id="wMax" type="number" placeholder="最高" min="0" max="9999" step="50" oninput="apply()">
+      <span class="sf-t">重量範圍</span>
+      <div style="margin-bottom:5px">
+        <div style="font-size:10px;color:var(--text3);margin-bottom:4px">以 g 輸入</div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <input class="range-input" id="wMinG" type="number" placeholder="最低 g" min="0" step="50" oninput="apply()">
+          <span style="color:var(--text3);font-size:11px">—</span>
+          <input class="range-input" id="wMaxG" type="number" placeholder="最高 g" min="0" step="50" oninput="apply()">
+        </div>
       </div>
-      <div class="search-hint">例：1000 — 2000，留空表示不限</div>
+      <div>
+        <div style="font-size:10px;color:var(--text3);margin-bottom:4px">以 kg 輸入</div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <input class="range-input" id="wMinKg" type="number" placeholder="最低 kg" min="0" step="0.1" oninput="apply()">
+          <span style="color:var(--text3);font-size:11px">—</span>
+          <input class="range-input" id="wMaxKg" type="number" placeholder="最高 kg" min="0" step="0.1" oninput="apply()">
+        </div>
+      </div>
+      <div class="search-hint">g 與 kg 取聯集，留空不限</div>
     </div>
 
     <div class="sf">
@@ -292,6 +303,16 @@ input[type=checkbox]{cursor:pointer;width:14px;height:14px;accent-color:var(--ac
         <input class="range-input" id="pMax" type="number" placeholder="最高" min="0" step="1000" oninput="apply()">
       </div>
       <div class="search-hint">例：30000 — 60000，留空表示不限</div>
+    </div>
+
+    <div class="sf">
+      <span class="sf-t">客群</span>
+      <div class="pills" id="segP"></div>
+    </div>
+
+    <div class="sf">
+      <span class="sf-t">Form Factor</span>
+      <div class="pills" id="formP"></div>
     </div>
 
     <div class="sf">
@@ -307,16 +328,6 @@ input[type=checkbox]{cursor:pointer;width:14px;height:14px;accent-color:var(--ac
     <div class="sf">
       <span class="sf-t">市場</span>
       <div class="pills" id="regionP"></div>
-    </div>
-
-    <div class="sf">
-      <span class="sf-t">客群</span>
-      <div class="pills" id="segP"></div>
-    </div>
-
-    <div class="sf">
-      <span class="sf-t">Form Factor</span>
-      <div class="pills" id="formP"></div>
     </div>
 
     <div class="sf">
@@ -415,16 +426,16 @@ let ALL=[],FD=[],selIdx=null,view='table',sortC='brand',sortD=1,cmpSet=new Set()
 const F={q:'',brand:[],screen:[],cpu:[],gpu:[],status:[],region:[],segment:[],form:[],series:''};
 
 const PRESETS=[
-  {id:'p1', icon:'⚡', label:'輕薄 <1.5kg',        fn:d=>pW(d)<1500&&d.status==='在售'},
-  {id:'p2', icon:'🏋', label:'2kg以下',             fn:d=>pW(d)<2000},
-  {id:'p3', icon:'🖥', label:'有獨立顯卡',           fn:d=>d.gpu_type&&d.gpu_type.includes('dGPU')},
-  {id:'p4', icon:'💼', label:'工作站等級',           fn:d=>d.segment==='Commercial'||d.segment==='Mobile WS'},
-  {id:'p5', icon:'📺', label:'大螢幕 ≥17吋',        fn:d=>parseFloat(d.screen_size)>=17},
-  {id:'p6', icon:'📺🖥', label:'18吋+獨顯',          fn:d=>parseFloat(d.screen_size)>=18&&d.gpu_type&&d.gpu_type.includes('dGPU')},
-  {id:'p7', icon:'🔋', label:'長電池 ≥86Wh',        fn:d=>pB(d)>=86},
-  {id:'p8', icon:'✨', label:'OLED螢幕',            fn:d=>d.display_type&&d.display_type.toUpperCase().includes('OLED')},
-  {id:'p9', icon:'🎮', label:'電競機種',             fn:d=>d.segment==='Gaming'},
-  {id:'p10',icon:'🔄', label:'2-in-1',              fn:d=>d.form_factor==='2-in-1'},
+  {id:'p1', icon:'⚡', label:'輕薄 <1.5kg',   fn:d=>pW(d)<1500},
+  {id:'p2', icon:'🏋', label:'2kg以下',        fn:d=>pW(d)<2000},
+  {id:'p3', icon:'🖥', label:'有獨立顯卡',      fn:d=>d.gpu_type&&d.gpu_type.includes('dGPU')},
+  {id:'p4', icon:'💼', label:'工作站等級',      fn:d=>d.segment==='Commercial'||d.segment==='Mobile WS'},
+  {id:'p5', icon:'📺', label:'大螢幕 ≥17吋',   fn:d=>parseFloat(d.screen_size)>=17},
+  {id:'p6', icon:'📺', label:'18吋+獨顯',      fn:d=>parseFloat(d.screen_size)>=18&&d.gpu_type&&d.gpu_type.includes('dGPU')},
+  {id:'p7', icon:'🔋', label:'長電池 ≥86Wh',  fn:d=>pB(d)>=86},
+  {id:'p8', icon:'✨', label:'OLED螢幕',       fn:d=>d.display_type&&d.display_type.toUpperCase().includes('OLED')},
+  {id:'p9', icon:'🎮', label:'電競機種',        fn:d=>d.segment==='Gaming'},
+  {id:'p10',icon:'🔄', label:'2-in-1',         fn:d=>d.form_factor==='2-in-1'},
 ];
 
 // Helpers
@@ -456,10 +467,18 @@ fetch('data.json')
 function initUI(){
   // pills
   mkPills('brandP','brand',['Dell','HP','Lenovo'],v=>({Dell:'pd',HP:'ph',Lenovo:'pl'}[v]||''));
-  const sc=[...new Set(ALL.map(d=>d.screen_size).filter(v=>v&&v!=='—'))].sort((a,b)=>parseFloat(a)-parseFloat(b));
-  mkPills('screenP','screen',sc);
+  // Integer-grouped screen sizes (e.g. "13" matches 13", 13.3" etc.)
+  const allInches=[...new Set(ALL.map(d=>parseFloat(d.screen_size)||0).filter(v=>v>0))];
+  const intSizes=[...new Set(allInches.map(v=>Math.floor(v)))].sort((a,b)=>a-b);
+  document.getElementById('screenP').innerHTML=intSizes.map(v=>
+    `<div class="pill" onclick="togScreenSize(this,${v})">${v}"</div>`
+  ).join('');
   mkPills('cpuP','cpu',['Intel','AMD','Qualcomm']);
-  mkPills('gpuP','gpu',['iGPU','dGPU','iGPU/dGPU']);
+  mkPillsMap('gpuP','gpu',[
+    {label:'iGPU / 內顯', val:'iGPU'},
+    {label:'dGPU / 獨顯', val:'dGPU'},
+    {label:'iGPU + dGPU', val:'iGPU/dGPU'},
+  ]);
   mkPills('statusP','status',['在售','即將推出']);
   mkPills('regionP','region',['TW','TW/US','US']);
   mkPills('segP','segment',['Consumer','Gaming','Commercial','Mobile WS']);
@@ -475,12 +494,28 @@ function initUI(){
   ).join('');
 }
 
+function mkPillsMap(id,key,items){
+  document.getElementById(id).innerHTML=items.map(({label,val})=>
+    `<div class="pill" data-val="${val}" onclick="togPillVal(this,'${key}','${val.replace(/'/g,\"\\'\"')}')">${label}</div>`
+  ).join('');
+}
+function togPillVal(el,key,val){
+  const a=F[key],i=a.indexOf(val);
+  if(i===-1){a.push(val);el.classList.add('on');}else{a.splice(i,1);el.classList.remove('on');}
+  apply();
+}
 function mkPills(id,key,vals,cls){
   document.getElementById(id).innerHTML=vals.map(v=>`<div class="pill ${cls?cls(v):''}" onclick="togPill(this,'${key}','${esc(v)}')">${esc(v)}</div>`).join('');
+}
+function togScreenSize(el,inch){
+  const i=F.screen.indexOf(inch);
+  if(i===-1){F.screen.push(inch);el.classList.add('on');}else{F.screen.splice(i,1);el.classList.remove('on');}
+  apply();
 }
 function togPill(el,key,val){
   const a=F[key],i=a.indexOf(val);
   if(i===-1){a.push(val);el.classList.add('on');}else{a.splice(i,1);el.classList.remove('on');}
+  if(key==='brand')updateSeriesDropdown();
   apply();
 }
 function togPreset(id){
@@ -492,10 +527,10 @@ function resetAll(){
   Object.keys(F).forEach(k=>Array.isArray(F[k])?F[k]=[]:typeof F[k]==='number'?null:F[k]='');
   F.maxW=4500;F.minB=0;F.q='';F.series='';
   document.getElementById('sbox').value='';
-  document.getElementById('wMin').value='';document.getElementById('wMax').value='';
+  ['wMinG','wMaxG','wMinKg','wMaxKg'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('pMin').value='';document.getElementById('pMax').value='';
   document.getElementById('seriesSel').value='';
-  document.querySelectorAll('.pill.on').forEach(p=>p.classList.remove('on'));
+  document.querySelectorAll('.pill.on').forEach(p=>p.classList.remove('on'));F.screen=[];updateSeriesDropdown();
   activePresets.forEach(id=>{const el=document.getElementById(id);if(el)el.classList.remove('on');});activePresets.clear();
   apply();
 }
@@ -552,19 +587,23 @@ function apply(){
     if(!F.status.length&&d.status==='停售/改名')return false;
     if(F.brand.length&&!F.brand.includes(d.brand))return false;
     if(F.series&&d.series!==F.series)return false;
-    if(F.screen.length&&!F.screen.includes(d.screen_size))return false;
+    if(F.screen.length&&!F.screen.some(s=>Math.floor(parseFloat(d.screen_size||0))===s))return false;
     if(F.cpu.length&&!F.cpu.some(c=>d.cpu_platform&&d.cpu_platform.includes(c)))return false;
     if(F.gpu.length&&!F.gpu.includes(d.gpu_type))return false;
     if(F.status.length&&!F.status.includes(d.status))return false;
     if(F.region.length&&!F.region.includes(d.region))return false;
     if(F.segment.length&&!F.segment.includes(d.segment))return false;
     if(F.form.length&&!F.form.includes(d.form_factor))return false;
-    const wMin=parseInt(document.getElementById('wMin').value)||0;
-    const wMax=parseInt(document.getElementById('wMax').value)||0;
+    const wMinG=parseFloat(document.getElementById('wMinG').value)||0;
+    const wMaxG=parseFloat(document.getElementById('wMaxG').value)||0;
+    const wMinKg=parseFloat(document.getElementById('wMinKg').value)||0;
+    const wMaxKg=parseFloat(document.getElementById('wMaxKg').value)||0;
+    const wLo=wMinKg>0?wMinKg*1000:(wMinG||0);
+    const wHi=wMaxKg>0?wMaxKg*1000:(wMaxG||0);
     const pMin=parseInt(document.getElementById('pMin').value)||0;
     const pMax=parseInt(document.getElementById('pMax').value)||0;
-    if(wMin>0&&pW(d)<wMin)return false;
-    if(wMax>0&&pW(d)>wMax)return false;
+    if(wLo>0&&pW(d)<wLo)return false;
+    if(wHi>0&&pW(d)>wHi)return false;
     if(pMin>0){const p=parseInt(String(d.price_tw).replace(/[^0-9]/g,''))||0;if(p>0&&p<pMin)return false;}
     if(pMax>0){const p=parseInt(String(d.price_tw).replace(/[^0-9]/g,''))||0;if(p>0&&p>pMax)return false;}
     // Smart rules (from typed query)
