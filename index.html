@@ -547,7 +547,9 @@ function parseQuery(raw){
   if(/oled/.test(q)){rules.push({type:'oled'});q=q.replace(/oled/g,'');}
 
   // Remaining tokens = text keyword search
-  const tokens=q.split(/[\s、，,。]+/).map(t=>t.trim()).filter(t=>t.length>0);
+  // Remove Chinese connective particles before treating as keywords
+  const STOP=['的','且','和','與','及','也','跟','或','有','無','都','很','最','非常','要','想','找'];
+  const tokens=q.split(/[\s、，,。]+/).map(t=>t.trim()).filter(t=>t.length>1||/[a-z0-9]/i.test(t)).filter(t=>!STOP.includes(t));
 
   return{rules,tokens};
 }
@@ -608,6 +610,8 @@ function apply(){
   });
 
   updateStats(); render();
+  // Show empty hint if nothing found
+  if(!FD.length) document.getElementById('mc').innerHTML=`<div class="empty"><div class="empty-i">🔍</div><div class="empty-t">沒有符合條件的資料</div><div style="margin-top:4px;font-size:12px;color:var(--text3)">目前資料庫中無此規格組合的機種</div></div>`;
 }
 
 function updateStats(){
