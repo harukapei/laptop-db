@@ -54,6 +54,10 @@ header{background:#fff;border-bottom:1px solid var(--border);padding:0 20px;heig
 .sbox:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-light);background:#fff}
 .sbox::placeholder{color:var(--text3)}
 .search-hint{font-size:10px;color:var(--text3);margin-top:5px;line-height:1.4}
+.range-input{flex:1;min-width:0;padding:6px 8px;border:1px solid var(--border);border-radius:var(--r);font-size:12px;background:var(--surface2);color:var(--text);font-family:var(--mono);outline:none;transition:border-color .15s;-moz-appearance:textfield}
+.range-input::-webkit-inner-spin-button,.range-input::-webkit-outer-spin-button{-webkit-appearance:none}
+.range-input:focus{border-color:var(--accent);background:#fff}
+.range-input::placeholder{color:var(--text3);font-family:var(--fn)}
 
 /* PILLS */
 .pills{display:flex;flex-wrap:wrap;gap:5px}
@@ -271,23 +275,27 @@ input[type=checkbox]{cursor:pointer;width:14px;height:14px;accent-color:var(--ac
     </div>
 
     <div class="sf">
-      <span class="sf-t">最低重量上限</span>
-      <div class="sl-row">
-        <div class="sl-label"><span>不限</span><b id="wLbl">不限</b></div>
-        <input type="range" id="wSlider" min="800" max="4500" step="50" value="4500" oninput="onW()">
+      <span class="sf-t">重量範圍（g）</span>
+      <div style="display:flex;gap:6px;align-items:center">
+        <input class="range-input" id="wMin" type="number" placeholder="最低" min="0" max="9999" step="50" oninput="apply()">
+        <span style="color:var(--text3);font-size:11px">—</span>
+        <input class="range-input" id="wMax" type="number" placeholder="最高" min="0" max="9999" step="50" oninput="apply()">
       </div>
+      <div class="search-hint">例：1000 — 2000，留空表示不限</div>
     </div>
 
     <div class="sf">
-      <span class="sf-t">電池容量下限</span>
-      <div class="sl-row">
-        <div class="sl-label"><span>不限</span><b id="bLbl">不限</b></div>
-        <input type="range" id="bSlider" min="0" max="100" step="5" value="0" oninput="onB()">
+      <span class="sf-t">售價範圍（NT$）</span>
+      <div style="display:flex;gap:6px;align-items:center">
+        <input class="range-input" id="pMin" type="number" placeholder="最低" min="0" step="1000" oninput="apply()">
+        <span style="color:var(--text3);font-size:11px">—</span>
+        <input class="range-input" id="pMax" type="number" placeholder="最高" min="0" step="1000" oninput="apply()">
       </div>
+      <div class="search-hint">例：30000 — 60000，留空表示不限</div>
     </div>
 
     <div class="sf">
-      <span class="sf-t">常用條件（快速套用）</span>
+      <span class="sf-t">常用條件（可複選）</span>
       <div class="preset-grid" id="presets"></div>
     </div>
 
@@ -403,8 +411,8 @@ input[type=checkbox]{cursor:pointer;width:14px;height:14px;accent-color:var(--ac
 <div class="toast" id="toast"></div>
 
 <script>
-let ALL=[],FD=[],selIdx=null,view='table',sortC='brand',sortD=1,cmpSet=new Set(),activePreset=null;
-const F={q:'',brand:[],screen:[],cpu:[],gpu:[],status:[],region:[],segment:[],form:[],series:'',maxW:4500,minB:0};
+let ALL=[],FD=[],selIdx=null,view='table',sortC='brand',sortD=1,cmpSet=new Set(),activePresets=new Set();
+const F={q:'',brand:[],screen:[],cpu:[],gpu:[],status:[],region:[],segment:[],form:[],series:''};
 
 const PRESETS=[
   {id:'p1', icon:'⚡', label:'輕薄 <1.5kg',        fn:d=>pW(d)<1500&&d.status==='在售'},
@@ -476,23 +484,22 @@ function togPill(el,key,val){
   apply();
 }
 function togPreset(id){
-  if(activePreset===id){activePreset=null;document.getElementById(id).classList.remove('on');}
-  else{if(activePreset)document.getElementById(activePreset).classList.remove('on');activePreset=id;document.getElementById(id).classList.add('on');}
+  if(activePresets.has(id)){activePresets.delete(id);document.getElementById(id).classList.remove('on');}
+  else{activePresets.add(id);document.getElementById(id).classList.add('on');}
   apply();
 }
 function resetAll(){
   Object.keys(F).forEach(k=>Array.isArray(F[k])?F[k]=[]:typeof F[k]==='number'?null:F[k]='');
   F.maxW=4500;F.minB=0;F.q='';F.series='';
   document.getElementById('sbox').value='';
-  document.getElementById('wSlider').value=4500;document.getElementById('wLbl').textContent='不限';
-  document.getElementById('bSlider').value=0;document.getElementById('bLbl').textContent='不限';
+  document.getElementById('wMin').value='';document.getElementById('wMax').value='';
+  document.getElementById('pMin').value='';document.getElementById('pMax').value='';
   document.getElementById('seriesSel').value='';
   document.querySelectorAll('.pill.on').forEach(p=>p.classList.remove('on'));
-  if(activePreset){document.getElementById(activePreset).classList.remove('on');activePreset=null;}
+  activePresets.forEach(id=>{const el=document.getElementById(id);if(el)el.classList.remove('on');});activePresets.clear();
   apply();
 }
-function onW(){const v=+document.getElementById('wSlider').value;F.maxW=v;document.getElementById('wLbl').textContent=v>=4500?'不限':v+'g';apply();}
-function onB(){const v=+document.getElementById('bSlider').value;F.minB=v;document.getElementById('bLbl').textContent=v<=0?'不限':v+'Wh';apply();}
+
 
 // SORT
 const SORT_BTNS=['sb0','sb1','sb2','sb3','sb4','sb5'];
@@ -537,7 +544,7 @@ function apply(){
   const rawQ=document.getElementById('sbox').value.trim();
   F.q=rawQ.toLowerCase();
   F.series=document.getElementById('seriesSel').value;
-  const preset=activePreset?PRESETS.find(p=>p.id===activePreset):null;
+  const selectedPresets=PRESETS.filter(p=>activePresets.has(p.id));
   const {rules,tokens}=parseQuery(rawQ);
 
   FD=ALL.filter(d=>{
@@ -552,8 +559,14 @@ function apply(){
     if(F.region.length&&!F.region.includes(d.region))return false;
     if(F.segment.length&&!F.segment.includes(d.segment))return false;
     if(F.form.length&&!F.form.includes(d.form_factor))return false;
-    if(F.maxW<4500&&pW(d)>F.maxW)return false;
-    if(F.minB>0&&pB(d)<F.minB)return false;
+    const wMin=parseInt(document.getElementById('wMin').value)||0;
+    const wMax=parseInt(document.getElementById('wMax').value)||0;
+    const pMin=parseInt(document.getElementById('pMin').value)||0;
+    const pMax=parseInt(document.getElementById('pMax').value)||0;
+    if(wMin>0&&pW(d)<wMin)return false;
+    if(wMax>0&&pW(d)>wMax)return false;
+    if(pMin>0){const p=parseInt(String(d.price_tw).replace(/[^0-9]/g,''))||0;if(p>0&&p<pMin)return false;}
+    if(pMax>0){const p=parseInt(String(d.price_tw).replace(/[^0-9]/g,''))||0;if(p>0&&p>pMax)return false;}
     // Smart rules (from typed query)
     if(rules.length&&!rules.every(r=>applyRule(d,r)))return false;
     // Remaining text tokens
@@ -561,7 +574,7 @@ function apply(){
       const hay=[d.brand,d.series,d.model,d.cpu_platform,d.gpu_type,d.dgpu_model,d.generation,d.display_type,d.screen_size,d.region,d.status].join(' ').toLowerCase();
       if(!tokens.every(t=>hay.includes(t)))return false;
     }
-    if(preset&&!preset.fn(d))return false;
+    if(selectedPresets.length&&!selectedPresets.every(p=>p.fn(d)))return false;
     return true;
   });
 
