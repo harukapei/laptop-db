@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>筆電資料庫｜Dell・HP・Lenovo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f2f2f0;--surface:#fff;--surface2:#f7f7f5;--border:#e4e2dc;
+  --text:#18181b;--text2:#52525b;--text3:#a1a1aa;
+  --accent:#2563eb;--accent-light:#eff6ff;--accent2:#dc2626;
+  --dell:#0076a8;--hp:#0096d6;--lenovo:#cc0000;
+  --green:#16a34a;--green-bg:#f0fdf4;
+  --orange:#ea580c;--orange-bg:#fff7ed;
+  --purple:#7c3aed;--purple-bg:#f5f3ff;
+  --fn:'Noto Sans TC',sans-serif;--mono:'DM Mono',monospace;
+  --r:6px;--sidebar:260px;--detail:340px;
+}
+body{font-family:var(--fn);background:var(--bg);color:var(--text);font-size:13px;line-height:1.5;min-height:100vh}
+
+/* LOADING */
+#ls{position:fixed;inset:0;background:#18181b;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;gap:16px}
+#ls .lg{font-size:20px;font-weight:600;color:#fff;letter-spacing:-.5px}
+#ls .bar{width:220px;height:3px;background:#3f3f46;border-radius:3px;overflow:hidden}
+#ls .fill{height:100%;background:#2563eb;border-radius:3px;animation:lp 1.4s ease-in-out infinite}
+@keyframes lp{0%{width:0;margin-left:0}60%{width:50%;margin-left:25%}100%{width:0;margin-left:100%}}
+#ls .sub{font-size:12px;color:#71717a;font-family:var(--mono)}
+
+/* HEADER */
+header{background:#fff;border-bottom:1px solid var(--border);padding:0 20px;height:52px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:100}
+.h-title{font-size:15px;font-weight:600;color:var(--text);display:flex;align-items:center;gap:8px}
+.h-dot{width:8px;height:8px;border-radius:50%;background:var(--accent)}
+.h-sub{font-size:11px;color:var(--text3);font-family:var(--mono)}
+.h-actions{margin-left:auto;display:flex;gap:8px;align-items:center}
+.hbtn{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:var(--r);font-size:12px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--text2);font-family:var(--fn);transition:all .15s;white-space:nowrap}
+.hbtn:hover{background:var(--surface2);border-color:#d4d4d8}
+.hbtn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.hbtn.primary:hover{background:#1d4ed8}
+.hbtn.copied{background:var(--green);color:#fff;border-color:var(--green)}
+
+/* LAYOUT */
+.app{display:flex;height:calc(100vh - 52px);overflow:hidden}
+
+/* SIDEBAR */
+.sidebar{width:var(--sidebar);background:var(--surface);border-right:1px solid var(--border);overflow-y:auto;flex-shrink:0;display:flex;flex-direction:column}
+.sidebar::-webkit-scrollbar{width:3px}
+.sidebar::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+.sf{padding:14px 16px;border-bottom:1px solid var(--border)}
+.sf:last-child{border-bottom:none}
+.sf-title{font-size:10px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--text3);margin-bottom:10px;display:block}
+.search-wrap{position:relative}
+.search-wrap svg{position:absolute;left:8px;top:50%;transform:translateY(-50%);color:var(--text3)}
+.sbox{width:100%;padding:7px 10px 7px 30px;border:1px solid var(--border);border-radius:var(--r);font-size:13px;background:var(--surface2);color:var(--text);font-family:var(--fn);outline:none;transition:all .15s}
+.sbox:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-light);background:#fff}
+.sbox::placeholder{color:var(--text3)}
+
+/* PILLS */
+.pills{display:flex;flex-wrap:wrap;gap:5px}
+.pill{padding:3px 9px;border-radius:20px;font-size:11px;font-weight:500;cursor:pointer;border:1.5px solid var(--border);background:var(--surface2);color:var(--text2);transition:all .15s;user-select:none;white-space:nowrap}
+.pill:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-light)}
+.pill.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.pill.on.pd{background:var(--dell);border-color:var(--dell)}
+.pill.on.ph{background:var(--hp);border-color:var(--hp)}
+.pill.on.pl{background:var(--lenovo);border-color:var(--lenovo)}
+
+/* SERIES SELECT */
+.sel-wrap{position:relative}
+select.sf-select{width:100%;padding:7px 28px 7px 10px;border:1px solid var(--border);border-radius:var(--r);font-size:12px;background:var(--surface2);color:var(--text);font-family:var(--fn);outline:none;-webkit-appearance:none;cursor:pointer;transition:border-color .15s}
+select.sf-select:focus{border-color:var(--accent);background:#fff}
+.sel-arrow{position:absolute;right:8px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--text3);font-size:10px}
+
+/* SLIDERS */
+.slider-row{margin-bottom:8px}
+.slider-label{display:flex;justify-content:space-between;font-size:11px;color:var(--text2);margin-bottom:5px}
+.slider-label b{color:var(--accent);font-family:var(--mono)}
+input[type=range]{-webkit-appearance:none;width:100%;height:4px;border-radius:4px;background:var(--border);outline:none;cursor:pointer}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--accent);cursor:pointer;border:2px solid #fff;box-shadow:0 1px 4px rgba(37,99,235,.3)}
+
+/* PRESET CONDITIONS */
+.preset-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+.preset{padding:6px 8px;border-radius:var(--r);font-size:11px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text2);transition:all .15s;text-align:center;user-select:none}
+.preset:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-light)}
+.preset.on{background:var(--accent-light);border-color:var(--accent);color:var(--accent)}
+.reset-all{width:100%;padding:7px;background:transparent;border:1px solid var(--border);border-radius:var(--r);color:var(--text2);font-size:11px;font-weight:500;cursor:pointer;font-family:var(--fn);transition:all .15s;margin-top:6px}
+.reset-all:hover{background:#fef2f2;border-color:#fca5a5;color:#dc2626}
+
+/* STATS BAR */
+.stats-bar{padding:10px 16px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:stretch;gap:0;flex-shrink:0}
+.stat-block{flex:1;text-align:center;padding:0 12px;border-right:1px solid var(--border)}
+.stat-block:last-child{border-right:none}
+.stat-num{font-size:18px;font-weight:700;color:var(--text);font-family:var(--mono);line-height:1.2}
+.stat-label{font-size:10px;color:var(--text3);margin-top:2px}
+.stat-sub{font-size:10px;color:var(--text2);font-family:var(--mono);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* SORT + VIEW BAR */
+.sort-bar{padding:8px 16px;background:var(--surface2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:6px;flex-shrink:0;flex-wrap:wrap}
+.sort-label{font-size:11px;color:var(--text3);margin-right:4px}
+.sbtn{padding:4px 10px;border-radius:20px;font-size:11px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--text2);transition:all .15s;font-family:var(--fn)}
+.sbtn:hover{border-color:var(--accent);color:var(--accent)}
+.sbtn.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.sbtn.on.asc::after{content:' ↑'}
+.sbtn.on.desc::after{content:' ↓'}
+.view-toggle{margin-left:auto;display:flex;gap:4px}
+.vbtn{padding:4px 10px;border-radius:4px;font-size:11px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--text2);font-family:var(--fn);transition:all .15s}
+.vbtn.on{background:var(--text);color:#fff;border-color:var(--text)}
+
+/* COMPARE BAR */
+.cmp-bar{padding:8px 16px;background:#eff6ff;border-bottom:1px solid #bfdbfe;display:none;align-items:center;gap:10px;flex-shrink:0}
+.cmp-bar.show{display:flex}
+.cmp-info{font-size:12px;color:#1e40af;font-weight:500}
+.cmp-tags{display:flex;gap:6px;flex:1;flex-wrap:wrap}
+.cmp-tag{font-size:11px;background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:4px}
+.cmp-go{padding:5px 14px;background:var(--accent);color:#fff;border:none;border-radius:var(--r);font-size:12px;font-weight:500;cursor:pointer;font-family:var(--fn)}
+.cmp-clear{padding:5px 10px;background:transparent;color:#1e40af;border:1px solid #93c5fd;border-radius:var(--r);font-size:12px;cursor:pointer;font-family:var(--fn)}
+
+/* MAIN AREA */
+.main{flex:1;overflow:hidden;display:flex;flex-direction:column}
+.content-wrap{flex:1;overflow:hidden;display:flex}
+.content{flex:1;overflow-y:auto;padding:12px}
+.content::-webkit-scrollbar{width:5px}
+.content::-webkit-scrollbar-thumb{background:var(--border);border-radius:5px}
+
+/* TABLE */
+.tbl-wrap{background:var(--surface);border-radius:var(--r);border:1px solid var(--border);overflow:hidden}
+table{width:100%;border-collapse:collapse}
+thead{background:var(--surface2);position:sticky;top:0;z-index:2}
+th{padding:9px 10px;text-align:left;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text3);white-space:nowrap;border-bottom:1px solid var(--border)}
+th.chk-th{width:32px;padding:9px 6px}
+td{padding:9px 10px;font-size:12px;border-bottom:1px solid var(--surface2);white-space:nowrap;max-width:180px;overflow:hidden;text-overflow:ellipsis;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr.data-row:hover td{background:var(--accent-light);cursor:pointer}
+tr.data-row.sel td{background:#dbeafe}
+td.chk-td{padding:9px 6px;text-align:center}
+input[type=checkbox]{cursor:pointer;width:14px;height:14px;accent-color:var(--accent)}
+
+/* TAGS */
+.bt{display:inline-block;padding:2px 7px;border-radius:3px;font-size:11px;font-weight:600;letter-spacing:.2px}
+.bt-dell{background:#e0f2fe;color:var(--dell)}.bt-hp{background:#e0f7ff;color:var(--hp)}.bt-lenovo{background:#fee2e2;color:var(--lenovo)}
+.seg{display:inline-block;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:500}
+.seg-c{background:#dcfce7;color:#15803d}.seg-g{background:#fee2e2;color:#b91c1c}.seg-b{background:#dbeafe;color:#1e40af}.seg-w{background:#f3e8ff;color:#6d28d9}
+.sts{display:inline-block;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:500}
+.sts-on{background:#dcfce7;color:#15803d}.sts-off{background:#f4f4f5;color:var(--text3)}.sts-soon{background:#fef9c3;color:#854d0e}
+.rt{font-family:var(--mono);font-size:10px;color:var(--text3);background:var(--surface2);padding:1px 5px;border-radius:3px}
+.ptw{font-family:var(--mono);font-size:12px}.pus{font-family:var(--mono);font-size:10px;color:var(--text3)}
+
+/* CARD GRID */
+.card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:12px;cursor:pointer;transition:all .15s;position:relative}
+.card:hover{box-shadow:0 2px 8px rgba(0,0,0,.1);border-color:var(--accent)}
+.card.sel{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-light)}
+.card-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px}
+.card-chk{position:absolute;top:10px;right:10px}
+.card-mdl{font-size:13px;font-weight:600;margin:6px 0 2px;line-height:1.3}
+.card-meta{font-size:10px;color:var(--text3)}
+.card-stats{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:8px}
+.cs{background:var(--surface2);border-radius:4px;padding:5px 7px}
+.csl{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.4px}
+.csv{font-size:11px;font-weight:500;font-family:var(--mono);margin-top:1px}
+.card-price{font-size:13px;font-weight:600;color:var(--accent);font-family:var(--mono);margin-top:8px}
+
+/* DETAIL PANEL */
+.dp{width:var(--detail);flex-shrink:0;background:var(--surface);border-left:1px solid var(--border);overflow-y:auto;display:none;flex-direction:column}
+.dp.open{display:flex}
+.dp::-webkit-scrollbar{width:3px}
+.dp::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+.dp-hdr{padding:14px;border-bottom:1px solid var(--border);position:relative}
+.dp-brow{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+.dp-mdl{font-size:15px;font-weight:600;line-height:1.3}
+.dp-ser{font-size:11px;color:var(--text3);margin-top:2px}
+.dp-price{margin-top:10px;padding:9px 12px;background:var(--surface2);border-radius:var(--r)}
+.dp-ptw{font-size:16px;font-weight:700;font-family:var(--mono)}
+.dp-pus{font-size:11px;color:var(--text3);font-family:var(--mono);margin-top:2px}
+.dp-x{position:absolute;top:10px;right:10px;background:var(--surface2);border:none;cursor:pointer;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--text3);font-size:13px;transition:all .15s;line-height:1}
+.dp-x:hover{background:var(--border);color:var(--text)}
+.dp-body{padding:14px;flex:1}
+.dp-sec{margin-bottom:18px}
+.dp-sec-t{font-size:9px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--text3);margin-bottom:8px;padding-bottom:5px;border-bottom:1px solid var(--surface2)}
+.dp-row{display:flex;justify-content:space-between;align-items:flex-start;padding:4px 0;gap:8px}
+.dp-row+.dp-row{border-top:1px solid var(--surface2)}
+.dp-k{font-size:11px;color:var(--text3);flex-shrink:0}
+.dp-v{font-size:11px;font-weight:500;color:var(--text);text-align:right;line-height:1.4;word-break:break-all}
+.dp-act{padding:0 14px 14px}
+.dp-link{display:flex;align-items:center;justify-content:center;gap:5px;width:100%;padding:8px;background:var(--accent);color:#fff;border-radius:var(--r);text-decoration:none;font-size:12px;font-weight:500;transition:background .15s}
+.dp-link:hover{background:#1d4ed8}
+
+/* COMPARE MODAL */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;display:none;align-items:center;justify-content:center;padding:20px}
+.modal-bg.open{display:flex}
+.modal{background:var(--surface);border-radius:10px;width:100%;max-width:900px;max-height:80vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+.modal-hdr{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:var(--surface);z-index:1}
+.modal-title{font-size:14px;font-weight:600}
+.modal-x{background:none;border:none;cursor:pointer;font-size:18px;color:var(--text2);line-height:1;padding:4px}
+.cmp-table{width:100%;border-collapse:collapse}
+.cmp-table td,.cmp-table th{padding:10px 14px;border:1px solid var(--border);font-size:12px;vertical-align:top}
+.cmp-table th{background:var(--surface2);font-weight:600;font-size:11px;color:var(--text2);text-align:left;width:140px;white-space:nowrap}
+.cmp-table td{text-align:left}
+.cmp-table tr:first-child td{font-weight:600;font-size:13px;background:var(--accent-light)}
+
+/* EMPTY */
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px;color:var(--text3)}
+.empty-i{font-size:32px;margin-bottom:10px}
+.empty-t{font-size:14px;font-weight:500;color:var(--text2);margin-bottom:4px}
+
+/* TOAST */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:#18181b;color:#fff;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:500;opacity:0;transition:all .3s;z-index:500;pointer-events:none}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+<div id="ls"><div class="lg">🗂 筆電資料庫</div><div class="bar"><div class="fill"></div></div><div class="sub">載入 Dell・HP・Lenovo 資料中…</div></div>
+
+<header>
+  <div class="h-title"><div class="h-dot"></div>筆電資料庫</div>
+  <div class="h-sub" id="hSub">Dell・HP・Lenovo</div>
+  <div class="h-actions">
+    <button class="hbtn" id="shareBtn" onclick="shareLink()">🔗 分享連結</button>
+    <button class="hbtn" onclick="exportCSV()">⬇ 匯出 CSV</button>
+  </div>
+</header>
+
+<div class="app">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sf">
+      <span class="sf-title">快速搜尋</span>
+      <div class="search-wrap">
+        <svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/></svg>
+        <input class="sbox" id="sbox" placeholder="型號、系列、CPU… 可輸入多個關鍵字" oninput="apply()">
+      </div>
+    </div>
+
+    <div class="sf">
+      <span class="sf-title">品牌</span>
+      <div class="pills" id="brandP"></div>
+    </div>
+
+    <div class="sf">
+      <span class="sf-title">系列</span>
+      <div class="sel-wrap">
+        <select class="sf-select" id="seriesSel" onchange="apply()"><option value="">全部系列</option></select>
+        <div class="sel-arrow">▼</div>
+      </div>
+    </div>
+
+    <div class="sf">
+      <span class="sf-title">螢幕尺寸</span>
+      <div class="pills" id="screenP"></div>
+    </div>
+
+    <div class="sf">
+      <span class="sf-title">處理器平台</span>
+      <div class="pills" id="cpuP"></div>
+    </div>
+
+    <div class="sf">
+      <span class="sf-title">顯示晶片</span>
+      <div class="pills" id="gpuP"></div>
+    </div>
+
+    <div class="sf">
+      <span class="sf-title">最低重量上限</span>
+      <div class="slider-row">
+        <div class="slider-label"><span>不限</span><b id="wLabel">不限</b></div>
+        <input type="range" id="wSlider" min="800" max="4500" step="50" value="4500" oninput="onWSlide()">
+      </div>
+    </div>
+
+    <div class="sf">
+      <span class="sf-title">電池容量下限</span>
+      <div class="slider-row">
+        <div class="slider-label"><span>不限</span><b id="bLabel">不限</b></div>
+        <input type="range" id="bSlider" min="0" max="100" step="5" value="0" oninput="onBSlide()">
+      </div>
+    </div>
+
+    <div class="sf">
+      <span class="sf-title">常用條件</span>
+      <div class="preset-grid" id="presetGrid"></div>
+    </div>
+
+    <div class="sf">
+      <span class="sf-title">狀態</span>
+      <div class="pills" id="statusP"></div>
+    </div>
+
+    <div class="sf">
+      <span class="sf-title">市場</span>
+      <div class="pills" id="regionP"></div>
+    </div>
+
+    <div class="sf">
+      <span class="sf-title">客群</span>
+      <div class="pills" id="segP"></div>
+    </div>
+
+    <div class="sf">
+      <button class="reset-all" onclick="resetAll()">✕ 重設所有篩選</button>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main">
+    <!-- STATS -->
+    <div class="stats-bar">
+      <div class="stat-block">
+        <div class="stat-num" id="sCnt">—</div>
+        <div class="stat-label">符合筆數</div>
+      </div>
+      <div class="stat-block">
+        <div class="stat-num" id="sBrands">—</div>
+        <div class="stat-label">品牌分布</div>
+        <div class="stat-sub" id="sBrandSub">—</div>
+      </div>
+      <div class="stat-block">
+        <div class="stat-num" id="sLight">—</div>
+        <div class="stat-label">最輕機種</div>
+        <div class="stat-sub" id="sLightSub">—</div>
+      </div>
+      <div class="stat-block">
+        <div class="stat-num" id="sBatt">—</div>
+        <div class="stat-label">最高電池容量</div>
+        <div class="stat-sub" id="sBattSub">—</div>
+      </div>
+    </div>
+
+    <!-- SORT BAR -->
+    <div class="sort-bar">
+      <span class="sort-label">排序</span>
+      <button class="sbtn on asc" id="sb0" onclick="setSort('brand')">品牌 / 系列</button>
+      <button class="sbtn" id="sb1" onclick="setSort('weight_g')">最低重量</button>
+      <button class="sbtn" id="sb2" onclick="setSort('battery_wh')">最高電池</button>
+      <button class="sbtn" id="sb3" onclick="setSort('screen_size')">螢幕尺寸</button>
+      <button class="sbtn" id="sb4" onclick="setSort('thickness_mm')">厚度最薄</button>
+      <button class="sbtn" id="sb5" onclick="setSort('last_verified')">最後更新</button>
+      <div class="view-toggle">
+        <button class="vbtn on" id="vTbl" onclick="setView('table')">表格</button>
+        <button class="vbtn" id="vCrd" onclick="setView('card')">卡片</button>
+      </div>
+    </div>
+
+    <!-- COMPARE BAR -->
+    <div class="cmp-bar" id="cmpBar">
+      <div class="cmp-info">已選 <b id="cmpCnt">0</b> 筆</div>
+      <div class="cmp-tags" id="cmpTags"></div>
+      <button class="cmp-go" onclick="openCompare()">比較規格</button>
+      <button class="cmp-clear" onclick="clearCmp()">清除</button>
+    </div>
+
+    <!-- CONTENT -->
+    <div class="content-wrap">
+      <div class="content" id="mc"></div>
+      <div class="dp" id="dp">
+        <div class="dp-hdr">
+          <button class="dp-x" onclick="closeDP()">✕</button>
+          <div class="dp-brow" id="dpBrow"></div>
+          <div class="dp-mdl" id="dpMdl"></div>
+          <div class="dp-ser" id="dpSer"></div>
+          <div class="dp-price"><div class="dp-ptw" id="dpPtw"></div><div class="dp-pus" id="dpPus"></div></div>
+        </div>
+        <div class="dp-body" id="dpBdy"></div>
+        <div class="dp-act" id="dpAct"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- COMPARE MODAL -->
+<div class="modal-bg" id="cmpModal">
+  <div class="modal">
+    <div class="modal-hdr">
+      <span class="modal-title">規格比較</span>
+      <button class="modal-x" onclick="closeCompare()">✕</button>
+    </div>
+    <div style="overflow-x:auto;padding:16px" id="cmpContent"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let ALL=[],FD=[],selIdx=null,curView='table',sortC='brand',sortD=1;
+let cmpSet=new Set();
+const F={search:'',brand:[],screen:[],cpu:[],gpu:[],status:[],region:[],segment:[],series:'',maxW:4500,minB:0};
+let activePreset=null;
+
+const PRESETS=[
+  {id:'light',label:'⚡ 輕薄 <1.5kg',fn:d=>parseMinW(d.weight_g)<1500&&d.status==='在售'},
+  {id:'under2kg',label:'🏋 2kg以下',fn:d=>parseMinW(d.weight_g)<2000},
+  {id:'dgpu',label:'🖥 有獨立顯卡',fn:d=>d.gpu_type&&d.gpu_type.includes('dGPU')},
+  {id:'commercial',label:'💼 工作站等級',fn:d=>d.segment==='Commercial'||d.segment==='Mobile WS'},
+  {id:'big18',label:'📺 18吋大螢幕',fn:d=>d.screen_size&&parseFloat(d.screen_size)>=18},
+  {id:'big18dgpu',label:'📺🖥 18吋+獨顯',fn:d=>d.screen_size&&parseFloat(d.screen_size)>=18&&d.gpu_type&&d.gpu_type.includes('dGPU')},
+  {id:'batt',label:'🔋 長電池 ≥86Wh',fn:d=>parseMaxB(d.battery_wh)>=86},
+  {id:'oled',label:'✨ OLED螢幕',fn:d=>d.display_type&&d.display_type.toUpperCase().includes('OLED')},
+  {id:'gaming',label:'🎮 電競機種',fn:d=>d.segment==='Gaming'},
+  {id:'2in1',label:'🔄 2-in-1',fn:d=>d.form_factor==='2-in-1'},
+];
+
+function parseMinW(s){
+  if(!s||s==='—')return 9999;
+  const ns=String(s).replace(/[^0-9.~\-\/]/g,'');
+  const m=ns.match(/(\d+(?:\.\d+)?)/);
+  return m?parseFloat(m[1]):9999;
+}
+function parseMaxB(s){
+  if(!s||s==='—')return 0;
+  const nums=String(s).match(/\d+(?:\.\d+)?/g);
+  return nums?Math.max(...nums.map(Number)):0;
+}
+function parseMaxW(s){
+  if(!s||s==='—')return 0;
+  const nums=String(s).match(/\d+(?:\.\d+)?/g);
+  return nums?Math.max(...nums.map(Number)):0;
+}
+
+fetch('data.json')
+  .then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.json();})
+  .then(d=>{
+    ALL=d;
+    document.getElementById('ls').style.display='none';
+    initPills();initSeries();initPresets();
+    apply();
+  })
+  .catch(e=>{document.getElementById('ls').innerHTML='<div style="color:#f87171;padding:20px;font-size:14px">資料載入失敗：'+e.message+'</div>';});
+
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+function mkPills(id,key,vals,cls){
+  document.getElementById(id).innerHTML=vals.map(v=>`<div class="pill${cls?(' '+cls(v)):''}" onclick="togPill(this,'${key}','${esc(v)}')">${esc(v)}</div>`).join('');
+}
+function initPills(){
+  mkPills('brandP','brand',['Dell','HP','Lenovo'],v=>({Dell:'pd',HP:'ph',Lenovo:'pl'}[v]||''));
+  const sc=[...new Set(ALL.map(d=>d.screen_size).filter(v=>v&&v!=='—'))].sort((a,b)=>parseFloat(a)-parseFloat(b));
+  mkPills('screenP','screen',sc);
+  mkPills('cpuP','cpu',['Intel','AMD','Qualcomm']);
+  mkPills('gpuP','gpu',['iGPU','dGPU','iGPU/dGPU']);
+  mkPills('statusP','status',['在售','停售/改名','即將推出']);
+  mkPills('regionP','region',['TW','TW/US','US']);
+  mkPills('segP','segment',['Consumer','Gaming','Commercial','Mobile WS']);
+}
+function initSeries(){
+  const sel=document.getElementById('seriesSel');
+  const series=[...new Set(ALL.map(d=>d.series).filter(Boolean))].sort();
+  series.forEach(s=>{const o=document.createElement('option');o.value=s;o.textContent=s;sel.appendChild(o);});
+}
+function initPresets(){
+  document.getElementById('presetGrid').innerHTML=PRESETS.map(p=>`<div class="preset" id="pr-${p.id}" onclick="togPreset('${p.id}')">${esc(p.label)}</div>`).join('');
+}
+function togPreset(id){
+  if(activePreset===id){activePreset=null;document.getElementById('pr-'+id).classList.remove('on');}
+  else{if(activePreset)document.getElementById('pr-'+activePreset).classList.remove('on');activePreset=id;document.getElementById('pr-'+id).classList.add('on');}
+  apply();
+}
+function togPill(el,key,val){
+  const a=F[key],i=a.indexOf(val);
+  if(i===-1){a.push(val);el.classList.add('on');}else{a.splice(i,1);el.classList.remove('on');}
+  apply();
+}
+function resetAll(){
+  Object.keys(F).forEach(k=>Array.isArray(F[k])?F[k]=[]:typeof F[k]==='number'?0:F[k]='');
+  F.maxW=4500;F.minB=0;
+  document.getElementById('sbox').value='';
+  document.getElementById('wSlider').value=4500;document.getElementById('wLabel').textContent='不限';
+  document.getElementById('bSlider').value=0;document.getElementById('bLabel').textContent='不限';
+  document.getElementById('seriesSel').value='';
+  document.querySelectorAll('.pill.on').forEach(p=>p.classList.remove('on'));
+  if(activePreset){document.getElementById('pr-'+activePreset).classList.remove('on');activePreset=null;}
+  apply();
+}
+function onWSlide(){const v=+document.getElementById('wSlider').value;F.maxW=v;document.getElementById('wLabel').textContent=v>=4500?'不限':v+'g';apply();}
+function onBSlide(){const v=+document.getElementById('bSlider').value;F.minB=v;document.getElementById('bLabel').textContent=v<=0?'不限':v+'Wh';apply();}
+
+let sortBtns=['sb0','sb1','sb2','sb3','sb4','sb5'];
+let sortKeys=['brand','weight_g','battery_wh','screen_size','thickness_mm','last_verified'];
+function setSort(k){
+  const idx=sortKeys.indexOf(k);
+  if(sortC===k){sortD*=-1;}else{sortC=k;sortD=1;}
+  sortBtns.forEach((id,i)=>{
+    const el=document.getElementById(id);
+    el.classList.toggle('on',i===idx);
+    el.classList.toggle('asc',i===idx&&sortD===1);
+    el.classList.toggle('desc',i===idx&&sortD===-1);
+  });
+  apply();
+}
+function setView(v){curView=v;document.getElementById('vTbl').classList.toggle('on',v==='table');document.getElementById('vCrd').classList.toggle('on',v==='card');render();}
+
+function apply(){
+  F.search=document.getElementById('sbox').value.toLowerCase().trim();
+  F.series=document.getElementById('seriesSel').value;
+  const preset=activePreset?PRESETS.find(p=>p.id===activePreset):null;
+  FD=ALL.filter(d=>{
+    if(F.brand.length&&!F.brand.includes(d.brand))return false;
+    if(F.series&&d.series!==F.series)return false;
+    if(F.screen.length&&!F.screen.includes(d.screen_size))return false;
+    if(F.cpu.length&&!F.cpu.some(c=>d.cpu_platform&&d.cpu_platform.includes(c)))return false;
+    if(F.gpu.length&&!F.gpu.includes(d.gpu_type))return false;
+    if(F.status.length&&!F.status.includes(d.status))return false;
+    if(F.region.length&&!F.region.includes(d.region))return false;
+    if(F.segment.length&&!F.segment.includes(d.segment))return false;
+    if(F.maxW<4500){const mw=parseMinW(d.weight_g);if(mw>F.maxW)return false;}
+    if(F.minB>0){const mb=parseMaxB(d.battery_wh);if(mb<F.minB)return false;}
+    if(F.search){
+      const h=[d.brand,d.series,d.model,d.cpu_platform,d.gpu_type,d.generation,d.segment,d.display_type,d.dgpu_model,d.screen_size,d.region,d.status].join(' ').toLowerCase();
+      const tokens=F.search.split(/\s+/).filter(Boolean);
+      if(!tokens.every(t=>h.includes(t)))return false;
+    }
+    if(preset&&!preset.fn(d))return false;
+    return true;
+  });
+  FD.sort((a,b)=>{
+    let av=a[sortC]||'',bv=b[sortC]||'';
+    if(sortC==='weight_g'){av=parseMinW(a.weight_g);bv=parseMinW(b.weight_g);return(av-bv)*sortD;}
+    if(sortC==='battery_wh'){av=parseMaxB(a.battery_wh);bv=parseMaxB(b.battery_wh);return(bv-av)*sortD;}
+    if(sortC==='screen_size'){av=parseFloat(av)||0;bv=parseFloat(bv)||0;return(av-bv)*sortD;}
+    if(sortC==='thickness_mm'){av=parseFloat(String(a.thickness_mm).replace(/[^0-9.]/g,''))||999;bv=parseFloat(String(b.thickness_mm).replace(/[^0-9.]/g,''))||999;return(av-bv)*sortD;}
+    if(sortC==='brand'){const bs=a.brand+a.series,bs2=b.brand+b.series;return bs.localeCompare(bs2,'zh')*sortD;}
+    return String(av).localeCompare(String(bv),'zh')*sortD;
+  });
+  updateStats();render();
+}
+function updateStats(){
+  const n=FD.length;
+  document.getElementById('sCnt').textContent=n;
+  if(!n){
+    ['sBrands','sLight','sBatt'].forEach(id=>document.getElementById(id).textContent='—');
+    ['sBrandSub','sLightSub','sBattSub'].forEach(id=>document.getElementById(id).textContent='');
+    return;
+  }
+  const bc={};FD.forEach(d=>{bc[d.brand]=(bc[d.brand]||0)+1;});
+  document.getElementById('sBrands').textContent=Object.keys(bc).length+'品牌';
+  document.getElementById('sBrandSub').textContent=Object.entries(bc).map(([k,v])=>k+' '+v).join(' · ');
+  const byW=FD.filter(d=>parseMinW(d.weight_g)<9999).sort((a,b)=>parseMinW(a.weight_g)-parseMinW(b.weight_g));
+  if(byW.length){document.getElementById('sLight').textContent=parseMinW(byW[0].weight_g)+'g';document.getElementById('sLightSub').textContent=byW[0].model.substring(0,20);}
+  else{document.getElementById('sLight').textContent='—';document.getElementById('sLightSub').textContent='';}
+  const byB=FD.filter(d=>parseMaxB(d.battery_wh)>0).sort((a,b)=>parseMaxB(b.battery_wh)-parseMaxB(a.battery_wh));
+  if(byB.length){document.getElementById('sBatt').textContent=parseMaxB(byB[0].battery_wh)+'Wh';document.getElementById('sBattSub').textContent=byB[0].model.substring(0,20);}
+  else{document.getElementById('sBatt').textContent='—';document.getElementById('sBattSub').textContent='';}
+}
+
+function bTag(b){const m={Dell:'bt-dell',HP:'bt-hp',Lenovo:'bt-lenovo'};return`<span class="bt ${m[b]||''}">${esc(b)}</span>`;}
+function segTag(s){const m={Consumer:'seg-c',Gaming:'seg-g',Commercial:'seg-b','Mobile WS':'seg-w'};return`<span class="seg ${m[s]||''}">${esc(s)}</span>`;}
+function stsTag(s){const c=s==='在售'?'sts-on':s==='即將推出'?'sts-soon':'sts-off';return`<span class="sts ${c}">${esc(s)}</span>`;}
+
+function render(){if(curView==='table')renderTbl();else renderCrd();}
+
+function chkCell(i,d){
+  const chk=cmpSet.has(i);
+  return`<td class="chk-td"><input type="checkbox" ${chk?'checked':''} onclick="event.stopPropagation();togCmp(${i})" title="加入比較"></td>`;
+}
+
+function renderTbl(){
+  if(!FD.length){renderEmpty();return;}
+  const hdr=`<tr>
+    <th class="chk-th"><input type="checkbox" title="全選比較" onclick="togAllCmp(this)"></th>
+    <th>品牌</th><th>系列 / 型號</th><th>產品名稱</th>
+    <th>螢幕</th><th>重量</th><th>電池</th><th>CPU / GPU</th><th>I/O 端口</th>
+  </tr>`;
+  const rows=FD.map((d,i)=>{
+    const sel=i===selIdx?'sel':'';
+    const io=[d.io_left,d.io_right].filter(Boolean).join(' | ');
+    return`<tr class="data-row ${sel}" onclick="selItem(${i})">
+      ${chkCell(i,d)}
+      <td>${bTag(d.brand)}</td>
+      <td><span title="${esc(d.series)}">${esc(d.series)}</span></td>
+      <td><span title="${esc(d.model)}">${esc(d.model)}</span> ${stsTag(d.status)}</td>
+      <td>${esc(d.screen_size)} ${esc(d.display_type||'')}</td>
+      <td>${esc(d.weight_g)||'—'}</td>
+      <td>${esc(d.battery_wh)||'—'}</td>
+      <td><span title="${esc(d.cpu_platform+' / '+(d.gpu_type||''))}">${esc(d.cpu_platform||'—')} / ${esc(d.gpu_type||'—')}</span></td>
+      <td><span title="${esc(io)}">${esc(io.substring(0,40)+(io.length>40?'…':''))}</span></td>
+    </tr>`;
+  }).join('');
+  document.getElementById('mc').innerHTML=`<div class="tbl-wrap"><table><thead>${hdr}</thead><tbody>${rows}</tbody></table></div>`;
+}
+
+function renderCrd(){
+  if(!FD.length){renderEmpty();return;}
+  const cards=FD.map((d,i)=>`
+    <div class="card${i===selIdx?' sel':''}" onclick="selItem(${i})">
+      <input class="card-chk" type="checkbox" ${cmpSet.has(i)?'checked':''} onclick="event.stopPropagation();togCmp(${i})" title="加入比較">
+      <div class="card-top"><div>${bTag(d.brand)} ${segTag(d.segment)}</div><span class="rt">${esc(d.region)}</span></div>
+      <div class="card-mdl">${esc(d.model)}</div>
+      <div class="card-meta">${esc(d.series)} · ${esc(d.screen_size)} · ${stsTag(d.status)}</div>
+      <div class="card-stats">
+        <div class="cs"><div class="csl">重量</div><div class="csv">${esc(d.weight_g)||'—'}g</div></div>
+        <div class="cs"><div class="csl">電池</div><div class="csv">${esc(d.battery_wh)||'—'}Wh</div></div>
+        <div class="cs"><div class="csl">CPU</div><div class="csv">${esc(d.cpu_platform)||'—'}</div></div>
+        <div class="cs"><div class="csl">GPU</div><div class="csv">${esc(d.gpu_type)||'—'}</div></div>
+      </div>
+      ${d.price_tw?`<div class="card-price">NT$${esc(String(d.price_tw))}</div>`:''}
+    </div>`).join('');
+  document.getElementById('mc').innerHTML=`<div class="card-grid">${cards}</div>`;
+}
+
+function renderEmpty(){document.getElementById('mc').innerHTML=`<div class="empty"><div class="empty-i">🔍</div><div class="empty-t">沒有符合條件的資料</div><div>調整品牌、重量、電池或關鍵字後可以再查一次。</div></div>`;}
+
+function selItem(i){
+  selIdx=i;const d=FD[i];
+  document.getElementById('dpBrow').innerHTML=bTag(d.brand)+' '+segTag(d.segment)+' '+stsTag(d.status)+' '+`<span class="rt">${esc(d.region)}</span>`;
+  document.getElementById('dpMdl').textContent=d.model;
+  document.getElementById('dpSer').textContent=d.series+(d.year?' · '+d.year:'');
+  document.getElementById('dpPtw').textContent=d.price_tw?'NT$ '+d.price_tw:'—';
+  document.getElementById('dpPus').textContent=d.price_us?'US$ '+d.price_us:'';
+  function r(l,v){if(!v||v==='—'||v==='')return'';return`<div class="dp-row"><span class="dp-k">${esc(l)}</span><span class="dp-v">${esc(String(v))}</span></div>`;}
+  document.getElementById('dpBdy').innerHTML=`
+    <div class="dp-sec"><div class="dp-sec-t">螢幕</div>${r('尺寸',d.screen_size)}${r('種類',d.display_type)}${r('解析度',d.resolution)}${r('Form Factor',d.form_factor)}</div>
+    <div class="dp-sec"><div class="dp-sec-t">效能</div>${r('CPU平台',d.cpu_platform)}${r('顯卡類型',d.gpu_type)}${r('獨顯型號',d.dgpu_model||(!d.dgpu_model&&d.gpu_type&&!d.gpu_type.includes('dGPU')?'無獨立顯卡':''))}</div>
+    <div class="dp-sec"><div class="dp-sec-t">機身</div>${r('重量',d.weight_g?d.weight_g+' g':'')}${r('寬度',d.width_mm?d.width_mm+' mm':'')}${r('長度',d.depth_mm?d.depth_mm+' mm':'')}${r('厚度',d.thickness_mm?d.thickness_mm+' mm':'')}</div>
+    <div class="dp-sec"><div class="dp-sec-t">電力・周邊</div>${r('電池',d.battery_wh?d.battery_wh+' Wh':'')}${r('前鏡頭',d.webcam)}${r('數字鍵區',d.numpad)}${r('左側 I/O',d.io_left)}${r('右側 I/O',d.io_right)}</div>
+    <div class="dp-sec"><div class="dp-sec-t">上市資訊</div>${r('上市年份',d.year)}${r('世代',d.generation)}${r('最後核實',d.last_verified)}</div>`;
+  document.getElementById('dpAct').innerHTML=d.url?`<a href="${esc(d.url)}" target="_blank" rel="noopener" class="dp-link">前往官方網頁 ↗</a>`:'';
+  document.getElementById('dp').classList.add('open');
+  render();
+}
+function closeDP(){selIdx=null;document.getElementById('dp').classList.remove('open');render();}
+
+// COMPARE
+function togCmp(i){
+  if(cmpSet.has(i))cmpSet.delete(i);else{if(cmpSet.size>=4){showToast('最多比較 4 筆');return;}cmpSet.add(i);}
+  updateCmpBar();render();
+}
+function togAllCmp(el){if(el.checked){FD.slice(0,4).forEach((_,i)=>cmpSet.add(i));}else cmpSet.clear();updateCmpBar();render();}
+function clearCmp(){cmpSet.clear();updateCmpBar();render();}
+function updateCmpBar(){
+  const n=cmpSet.size;
+  document.getElementById('cmpBar').classList.toggle('show',n>0);
+  document.getElementById('cmpCnt').textContent=n;
+  document.getElementById('cmpTags').innerHTML=[...cmpSet].map(i=>`<span class="cmp-tag">${esc(FD[i]?.model?.substring(0,18)||'—')}</span>`).join('');
+}
+function openCompare(){
+  const items=[...cmpSet].map(i=>FD[i]).filter(Boolean);
+  if(!items.length)return;
+  const fields=[
+    ['型號','model'],['品牌','brand'],['系列','series'],['狀態','status'],['市場','region'],['客群','segment'],
+    ['螢幕尺寸','screen_size'],['螢幕種類','display_type'],['解析度','resolution'],['Form Factor','form_factor'],
+    ['CPU平台','cpu_platform'],['GPU類型','gpu_type'],['dGPU型號','dgpu_model'],
+    ['重量(g)','weight_g'],['寬度(mm)','width_mm'],['長度(mm)','depth_mm'],['厚度(mm)','thickness_mm'],
+    ['電池(Wh)','battery_wh'],['前鏡頭','webcam'],['數字鍵區','numpad'],
+    ['左側I/O','io_left'],['右側I/O','io_right'],
+    ['NT$ MSRP','price_tw'],['US$ MSRP','price_us'],['上市年份','year'],['最後核實','last_verified'],
+  ];
+  const hdr='<tr><th>規格項目</th>'+items.map(d=>`<td>${esc(d.brand)} ${esc(d.model)}</td>`).join('')+'</tr>';
+  const rows=fields.map(([l,k])=>'<tr><th>'+esc(l)+'</th>'+items.map(d=>`<td>${esc(String(d[k]||'—'))}</td>`).join('')+'</tr>').join('');
+  document.getElementById('cmpContent').innerHTML=`<table class="cmp-table">${hdr}${rows}</table>`;
+  document.getElementById('cmpModal').classList.add('open');
+}
+function closeCompare(){document.getElementById('cmpModal').classList.remove('open');}
+document.getElementById('cmpModal').addEventListener('click',e=>{if(e.target===document.getElementById('cmpModal'))closeCompare();});
+
+// SHARE
+function shareLink(){
+  navigator.clipboard.writeText(window.location.href).then(()=>{
+    const btn=document.getElementById('shareBtn');
+    btn.textContent='✓ 已複製連結';btn.classList.add('copied');
+    setTimeout(()=>{btn.textContent='🔗 分享連結';btn.classList.remove('copied');},2000);
+  }).catch(()=>showToast('請手動複製網址列'));
+}
+
+// EXPORT
+function exportCSV(){
+  if(!FD.length)return;
+  const k=Object.keys(FD[0]);
+  const csv=[k,...FD.map(d=>k.map(kk=>'"'+String(d[kk]||'').replace(/"/g,'""')+'"'))].map(r=>r.join(',')).join('\n');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'}));a.download='筆電資料庫.csv';a.click();
+}
+
+// TOAST
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500);}
+</script>
+</body>
+</html>
