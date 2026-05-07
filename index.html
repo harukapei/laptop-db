@@ -407,6 +407,31 @@ input[type=checkbox]{cursor:pointer;width:14px;height:14px;accent-color:var(--ac
           <div class="search-hint">g 與 kg 取聯集，留空不限</div>
         </div>
         <div class="sf">
+          <span class="sf-t">寬度 X (mm)</span>
+          <div style="display:flex;gap:6px;align-items:center">
+            <input class="range-input" id="xMin" type="number" placeholder="最低" min="0" step="1" oninput="apply()">
+            <span style="color:var(--text3);font-size:11px">—</span>
+            <input class="range-input" id="xMax" type="number" placeholder="最高" min="0" step="1" oninput="apply()">
+          </div>
+        </div>
+        <div class="sf">
+          <span class="sf-t">深度 Y (mm)</span>
+          <div style="display:flex;gap:6px;align-items:center">
+            <input class="range-input" id="yMin" type="number" placeholder="最低" min="0" step="1" oninput="apply()">
+            <span style="color:var(--text3);font-size:11px">—</span>
+            <input class="range-input" id="yMax" type="number" placeholder="最高" min="0" step="1" oninput="apply()">
+          </div>
+        </div>
+        <div class="sf">
+          <span class="sf-t">厚度 Z (mm)</span>
+          <div style="display:flex;gap:6px;align-items:center">
+            <input class="range-input" id="zMin" type="number" placeholder="最低" min="0" step="0.5" oninput="apply()">
+            <span style="color:var(--text3);font-size:11px">—</span>
+            <input class="range-input" id="zMax" type="number" placeholder="最高" min="0" step="0.5" oninput="apply()">
+          </div>
+          <div class="search-hint">三項皆留空表示不限</div>
+        </div>
+        <div class="sf">
           <span class="sf-t">售價範圍（NT$）</span>
           <div style="display:flex;gap:6px;align-items:center">
             <input class="range-input" id="pMin" type="number" placeholder="最低" min="0" step="1000" oninput="apply()">
@@ -488,11 +513,11 @@ input[type=checkbox]{cursor:pointer;width:14px;height:14px;accent-color:var(--ac
     <div class="sort-bar">
       <span class="sort-lbl">排序</span>
       <button class="sbtn on asc" id="sb0" onclick="ss('brand')">品牌 / 系列</button>
-      <button class="sbtn" id="sb1" onclick="ss('weight_g')">最低重量</button>
-      <button class="sbtn" id="sb2" onclick="ss('battery_wh')">最高電池</button>
-      <button class="sbtn" id="sb3" onclick="ss('thickness_mm')">厚度最薄</button>
-      <button class="sbtn" id="sb4" onclick="ss('screen_size')">螢幕尺寸</button>
-      <button class="sbtn" id="sb5" onclick="ss('last_verified')">最後更新</button>
+      <button class="sbtn" id="sb1" onclick="ss('weight_g')">重量</button>
+      <button class="sbtn" id="sb2" onclick="ss('width_mm')">X · 寬</button>
+      <button class="sbtn" id="sb3" onclick="ss('depth_mm')">Y · 長</button>
+      <button class="sbtn" id="sb4" onclick="ss('thickness_mm')">Z · 厚</button>
+      <button class="sbtn" id="sb5" onclick="ss('screen_size')">螢幕</button>
       <div class="view-toggle">
         <button class="vbtn on" id="vT" onclick="sv('table')">表格</button>
         <button class="vbtn" id="vC" onclick="sv('card')">卡片</button>
@@ -566,6 +591,8 @@ function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').
 function pW(d){const m=String(d.weight_g||'').match(/\d+(?:\.\d+)?/g);const n=(m||[]).map(Number).filter(x=>x>100);return n.length?Math.min(...n):9999;}
 function pB(d){const m=String(d.battery_wh||'').match(/\d+(?:\.\d+)?/g);return m?Math.max(...m.map(Number)):0;}
 function pT(d){const m=String(d.thickness_mm||'').match(/\d+(?:\.\d+)?/g);return m?Math.min(...m.map(Number)):999;}
+function pX(d){const m=String(d.width_mm||'').match(/\d+(?:\.\d+)?/g);return m?Math.min(...m.map(Number)):999;}
+function pY(d){const m=String(d.depth_mm||'').match(/\d+(?:\.\d+)?/g);return m?Math.min(...m.map(Number)):999;}
 
 // ── Tags ──
 function bTag(b){const c={Dell:'bt-dell',HP:'bt-hp',Lenovo:'bt-lenovo'}[b]||'';return'<span class="bt '+c+'">'+esc(b)+'</span>';}
@@ -685,7 +712,7 @@ function updateSeriesDropdown(){
 function resetAll(){
   Object.keys(F).forEach(function(k){if(Array.isArray(F[k]))F[k]=[];else F[k]='';});
   ['sbox','sbox-m'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
-  ['wMinG','wMaxG','wMinKg','wMaxKg','pMin','pMax'].forEach(function(id){document.getElementById(id).value='';});
+  ['wMinG','wMaxG','wMinKg','wMaxKg','xMin','xMax','yMin','yMax','zMin','zMax','pMin','pMax'].forEach(function(id){document.getElementById(id).value='';});
   document.getElementById('seriesSel').value='';
   document.querySelectorAll('.pill.on').forEach(function(p){p.classList.remove('on');});
   if(activePreset){var el=document.getElementById(activePreset);if(el)el.classList.remove('on');activePreset=null;}
@@ -702,7 +729,7 @@ function syncSearch(src){
 
 // ── Sort ──
 var SORT_BTNS=['sb0','sb1','sb2','sb3','sb4','sb5'];
-var SORT_KEYS=['brand','weight_g','battery_wh','thickness_mm','screen_size','last_verified'];
+var SORT_KEYS=['brand','weight_g','width_mm','depth_mm','thickness_mm','screen_size'];
 function ss(k){
   if(sortC===k)sortD*=-1;else{sortC=k;sortD=1;}
   SORT_BTNS.forEach(function(id,i){
@@ -729,6 +756,12 @@ function apply(){
   var wMaxKg=parseFloat(document.getElementById('wMaxKg').value)||0;
   var wLo=wMinKg>0?wMinKg*1000:wMinG;
   var wHi=wMaxKg>0?wMaxKg*1000:wMaxG;
+  var xMin=parseFloat(document.getElementById('xMin').value)||0;
+  var xMax=parseFloat(document.getElementById('xMax').value)||0;
+  var yMin=parseFloat(document.getElementById('yMin').value)||0;
+  var yMax=parseFloat(document.getElementById('yMax').value)||0;
+  var zMin=parseFloat(document.getElementById('zMin').value)||0;
+  var zMax=parseFloat(document.getElementById('zMax').value)||0;
   var pMin=parseInt(document.getElementById('pMin').value)||0;
   var pMax=parseInt(document.getElementById('pMax').value)||0;
 
@@ -745,6 +778,12 @@ function apply(){
     if(F.form.length&&!F.form.includes(d.form_factor))return false;
     if(wLo>0&&pW(d)<wLo)return false;
     if(wHi>0&&pW(d)>wHi)return false;
+    if(xMin>0&&pX(d)<xMin)return false;
+    if(xMax>0&&pX(d)>xMax)return false;
+    if(yMin>0&&pY(d)<yMin)return false;
+    if(yMax>0&&pY(d)>yMax)return false;
+    if(zMin>0&&pT(d)<zMin)return false;
+    if(zMax>0&&pT(d)>zMax)return false;
     if(pMin>0){var p=parseInt(String(d.price_tw).replace(/[^0-9]/g,''))||0;if(p>0&&p<pMin)return false;}
     if(pMax>0){var p2=parseInt(String(d.price_tw).replace(/[^0-9]/g,''))||0;if(p2>0&&p2>pMax)return false;}
     if(rules.length&&!rules.every(function(r){return applyRule(d,r);}))return false;
@@ -759,7 +798,8 @@ function apply(){
   FD.sort(function(a,b){
     if(sortC==='brand')return (a.brand+a.series).localeCompare(b.brand+b.series,'zh')*sortD;
     if(sortC==='weight_g')return(pW(a)-pW(b))*sortD;
-    if(sortC==='battery_wh')return(pB(b)-pB(a))*sortD;
+    if(sortC==='width_mm')return(pX(a)-pX(b))*sortD;
+    if(sortC==='depth_mm')return(pY(a)-pY(b))*sortD;
     if(sortC==='thickness_mm')return(pT(a)-pT(b))*sortD;
     if(sortC==='screen_size')return(parseFloat(a.screen_size||0)-parseFloat(b.screen_size||0))*sortD;
     return String(a[sortC]||'').localeCompare(String(b[sortC]||''),'zh')*sortD;
@@ -851,7 +891,7 @@ function selItem(i){
   document.getElementById('dpBdy').innerHTML=
     '<div class="dp-sec"><div class="dp-sec-t">螢幕</div>'+r('尺寸',d.screen_size)+r('種類',d.display_type)+r('解析度',d.resolution)+r('Form Factor',d.form_factor)+'</div>'
    +'<div class="dp-sec"><div class="dp-sec-t">效能</div>'+r('CPU 平台',d.cpu_platform)+'<div class="dp-row"><span class="dp-k">顯示晶片</span>'+gpuHtml+'</div></div>'
-   +'<div class="dp-sec"><div class="dp-sec-t">機身</div>'+r('重量',d.weight_g?d.weight_g+' g':'')+r('厚度',d.thickness_mm?d.thickness_mm+' mm':'')+r('寬',d.width_mm?d.width_mm+' mm':'')+r('長',d.depth_mm?d.depth_mm+' mm':'')+'</div>'
+   +'<div class="dp-sec"><div class="dp-sec-t">機身</div>'+r('重量',d.weight_g?d.weight_g+' g':'')+r('X · 寬',d.width_mm?d.width_mm+' mm':'')+r('Y · 長',d.depth_mm?d.depth_mm+' mm':'')+r('Z · 厚',d.thickness_mm?d.thickness_mm+' mm':'')+'</div>'
    +'<div class="dp-sec"><div class="dp-sec-t">電力・周邊</div>'+r('電池',d.battery_wh?d.battery_wh+' Wh':'')+r('前鏡頭',d.webcam)+r('數字鍵區',d.numpad)+r('左側 I/O',d.io_left)+r('右側 I/O',d.io_right)+'</div>'
    +'<div class="dp-sec"><div class="dp-sec-t">上市資訊</div>'+r('上市年份',d.year)+r('世代',d.generation)+r('最後核實',d.last_verified)+'</div>';
   document.getElementById('dpAct').innerHTML=d.url?'<a href="'+esc(d.url)+'" target="_blank" rel="noopener" class="dp-link">前往官方網頁 ↗</a>':'';
@@ -877,7 +917,7 @@ function updCmpBar(){
 function openCmp(){
   var items=[...cmpSet].map(function(i){return FD[i];}).filter(Boolean);
   if(!items.length)return;
-  var FIELDS=[['型號','model'],['品牌','brand'],['系列','series'],['狀態','status'],['市場','region'],['客群','segment'],['螢幕尺寸','screen_size'],['螢幕種類','display_type'],['解析度','resolution'],['Form Factor','form_factor'],['CPU平台','cpu_platform'],['GPU類型','gpu_type'],['獨顯型號','dgpu_model'],['重量(g)','weight_g'],['厚度(mm)','thickness_mm'],['寬度(mm)','width_mm'],['長度(mm)','depth_mm'],['電池(Wh)','battery_wh'],['前鏡頭','webcam'],['數字鍵區','numpad'],['左側I/O','io_left'],['右側I/O','io_right'],['NT$ MSRP','price_tw'],['US$ MSRP','price_us'],['上市年份','year'],['最後核實','last_verified']];
+  var FIELDS=[['型號','model'],['品牌','brand'],['系列','series'],['狀態','status'],['市場','region'],['客群','segment'],['重量 (g)','weight_g'],['X · 寬 (mm)','width_mm'],['Y · 長 (mm)','depth_mm'],['Z · 厚 (mm)','thickness_mm'],['螢幕尺寸','screen_size'],['螢幕種類','display_type'],['解析度','resolution'],['Form Factor','form_factor'],['CPU平台','cpu_platform'],['GPU類型','gpu_type'],['獨顯型號','dgpu_model'],['電池 (Wh)','battery_wh'],['前鏡頭','webcam'],['數字鍵區','numpad'],['左側I/O','io_left'],['右側I/O','io_right'],['NT$ MSRP','price_tw'],['US$ MSRP','price_us'],['上市年份','year'],['最後核實','last_verified']];
   var hdr='<tr><th>規格項目</th>'+items.map(function(d){return '<td>'+bTag(d.brand)+' '+esc(d.model)+'</td>';}).join('')+'</tr>';
   var rows=FIELDS.map(function(fl){
     var cells=items.map(function(d){var v=String(d[fl[1]]||'—');return v.includes('dGPU')?'<td class="hi">● '+esc(v)+'</td>':'<td>'+esc(v)+'</td>';}).join('');
