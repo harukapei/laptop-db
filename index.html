@@ -165,9 +165,7 @@ tr.dr.sel td{background:#dbeafe}
 td.chk{padding:9px 8px;text-align:center}
 /* visual hierarchy: model column emphasized, numeric columns mono */
 table tbody td:nth-child(4){font-weight:600;color:var(--text);font-size:12.5px}
-table tbody td:nth-child(5),
-table tbody td:nth-child(6),
-table tbody td:nth-child(7){font-family:var(--mono);font-size:11.5px;color:var(--text2)}
+table tbody td:nth-child(n+5){font-family:var(--mono);font-size:11.5px;color:var(--text2)}
 input[type=checkbox]{cursor:pointer;width:14px;height:14px;accent-color:var(--accent)}
 
 /* TAGS */
@@ -791,12 +789,8 @@ function render(){if(isMobile()||view==='card')renderCrd();else renderTbl();}
 
 function renderTbl(){
   if(!FD.length){renderEmpty();return;}
-  var hdr='<tr><th class="chk"><input type="checkbox" onclick="togAllCmp(this)"></th><th>品牌</th><th>系列 / 型號</th><th>產品名稱</th><th>螢幕</th><th>重量</th><th>電池</th><th>CPU / GPU</th><th>I/O 端口</th></tr>';
+  var hdr='<tr><th class="chk"><input type="checkbox" onclick="togAllCmp(this)"></th><th>品牌</th><th>系列 / 型號</th><th>產品名稱</th><th>螢幕</th><th>重量 (g)</th><th title="寬度 mm">X · 寬</th><th title="深度 mm">Y · 長</th><th title="厚度 mm">Z · 厚</th></tr>';
   var rows=FD.map(function(d,i){
-    var io=[d.io_left,d.io_right].filter(Boolean).join(' | ');
-    var gpuCell=d.gpu_type&&d.gpu_type.includes('dGPU')
-      ?'<span class="gpu-yes">●獨顯</span> '+esc(d.cpu_platform||'')
-      :esc((d.cpu_platform||'—')+' / '+(d.gpu_type||'—'));
     return '<tr class="dr'+(i===selIdx?' sel':'')+'" onclick="selItem('+i+')">'
       +'<td class="chk"><input type="checkbox" '+(cmpSet.has(i)?'checked':'')+' onclick="event.stopPropagation();togCmp('+i+')"></td>'
       +'<td>'+bTag(d.brand)+'</td>'
@@ -804,9 +798,9 @@ function renderTbl(){
       +'<td title="'+esc(d.model)+'">'+esc(d.model)+' '+stsTag(d.status)+'</td>'
       +'<td>'+esc(d.screen_size)+' <span style="color:var(--text3);font-size:10px">'+esc(d.display_type||'')+'</span></td>'
       +'<td>'+esc(d.weight_g||'—')+'</td>'
-      +'<td>'+esc(d.battery_wh||'—')+'</td>'
-      +'<td title="'+esc(d.cpu_platform+' / '+(d.gpu_type||''))+'">'+gpuCell+'</td>'
-      +'<td title="'+esc(io)+'">'+esc(io.substring(0,38)+(io.length>38?'…':''))+'</td>'
+      +'<td title="寬度 (mm)">'+esc(d.width_mm||'—')+'</td>'
+      +'<td title="深度 (mm)">'+esc(d.depth_mm||'—')+'</td>'
+      +'<td title="厚度 (mm)">'+esc(d.thickness_mm||'—')+'</td>'
       +'</tr>';
   }).join('');
   document.getElementById('mc').innerHTML='<div class="tw"><table><thead>'+hdr+'</thead><tbody>'+rows+'</tbody></table></div>';
