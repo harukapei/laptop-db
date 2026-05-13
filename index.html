@@ -138,6 +138,30 @@ select.sf-sel:focus{border-color:var(--accent);background:#fff}
 .vbtn{padding:5px 12px;font-size:11px;font-weight:500;cursor:pointer;border:none;background:transparent;color:var(--text2);font-family:var(--fn);transition:all var(--tr)}
 .vbtn.on{background:var(--text);color:#fff}
 
+/* CARD MODE TOGGLE (visible only when card view active) */
+.card-mode-toggle{display:none;gap:0;border:1px solid var(--border);border-radius:var(--r);overflow:hidden;flex-shrink:0;margin-left:6px}
+.card-mode-toggle.show{display:flex}
+.cmbtn{padding:5px 10px;font-size:11px;font-weight:500;cursor:pointer;border:none;background:transparent;color:var(--text2);font-family:var(--fn);transition:all var(--tr);white-space:nowrap}
+.cmbtn:hover{color:var(--text)}
+.cmbtn.on{background:var(--accent);color:#fff}
+
+/* DESIGN CARD CONTENT */
+.card-design-row{display:flex;align-items:flex-start;gap:8px;padding:6px 0;font-size:11.5px;line-height:1.45;border-top:1px solid var(--surface2)}
+.card-design-row:first-of-type{border-top:none}
+.card-design-icon{flex-shrink:0;font-size:13px;line-height:1.3;width:18px;text-align:center}
+.card-design-label{flex-shrink:0;color:var(--text3);font-size:10px;text-transform:uppercase;letter-spacing:.5px;width:36px;padding-top:1px}
+.card-design-val{flex:1;color:var(--text);min-width:0;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.card-design-val.mono-light{color:var(--text2);font-family:var(--mono);font-size:11px}
+
+/* Material badge (small chip on card / table) */
+.mat-badge{display:inline-flex;align-items:center;gap:3px;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:600;margin-left:4px;vertical-align:middle}
+.mat-aluminum{background:#dbeafe;color:#1d4ed8}
+.mat-magnesium{background:#f5f5f5;color:#525252}
+.mat-carbon{background:#1f2937;color:#fff}
+.mat-fiber{background:#fef3c7;color:#92400e}
+.mat-glass{background:#cffafe;color:#0e7490}
+.mat-plastic{background:#f3f4f6;color:#6b7280}
+
 /* COMPARE BAR (floating bottom-right) */
 .cmp-bar{position:fixed;bottom:20px;right:20px;background:var(--surface);border:1px solid var(--accent);border-radius:12px;display:none;align-items:center;gap:10px;padding:10px 14px;box-shadow:0 8px 24px rgba(37,99,235,.18);z-index:80;max-width:calc(100vw - 40px);flex-wrap:wrap}
 .cmp-bar.show{display:flex;animation:slideUp .25s ease}
@@ -234,6 +258,19 @@ input[type=checkbox]{cursor:pointer;width:14px;height:14px;accent-color:var(--ac
 .dp-v{font-size:11px;font-weight:500;color:var(--text);text-align:right;line-height:1.4;word-break:break-all}
 .dp-v.gpu-badge{background:var(--gpu-bg);color:var(--gpu-color);padding:2px 8px;border-radius:4px;font-weight:600}
 .dp-v.no-gpu{background:#f4f4f5;color:var(--text3);padding:2px 8px;border-radius:4px}
+.dp-v-long{font-weight:400;line-height:1.55}
+.dp-row-col{flex-direction:column;align-items:stretch;gap:4px}
+.dp-row-col .dp-k{font-weight:600}
+.dp-row-col .dp-v-long{text-align:left}
+.dp-expand{background:none;border:none;color:var(--accent);font-size:11px;cursor:pointer;padding:0 0 0 4px;font-family:var(--fn)}
+.dp-expand:hover{text-decoration:underline}
+.dp-mat-badges{display:inline-flex;gap:4px;margin-left:4px;flex-wrap:wrap}
+.dp-final-price{padding:14px 16px;background:var(--surface2);border-top:1px solid var(--border);margin-top:8px}
+.dp-final-price-row{display:flex;justify-content:space-between;align-items:baseline}
+.dp-final-price-row+.dp-final-price-row{margin-top:4px}
+.dp-final-k{font-size:11px;color:var(--text3)}
+.dp-final-v{font-size:14px;font-weight:600;font-family:var(--mono);color:var(--text)}
+.dp-final-v.muted{color:var(--text3);font-weight:400;font-size:12px}
 .dp-act{padding:0 16px 16px}
 .dp-link{display:flex;align-items:center;justify-content:center;gap:5px;width:100%;padding:10px;background:var(--accent);color:#fff;border-radius:var(--r);text-decoration:none;font-size:12.5px;font-weight:500;transition:background var(--tr)}
 .dp-link:hover{background:var(--accent-hover)}
@@ -530,6 +567,10 @@ input[type=checkbox]{cursor:pointer;width:14px;height:14px;accent-color:var(--ac
       <button class="sbtn" id="sb5" onclick="ss('screen_size')">螢幕</button>
       <span class="sort-divider"></span>
       <button class="sbtn sec" id="sb6" onclick="ss('last_verified')">最後更新</button>
+      <div class="card-mode-toggle" id="cardModeToggle">
+        <button class="cmbtn on" id="cmSpec" onclick="setCardMode('spec')">📐 規格</button>
+        <button class="cmbtn" id="cmDesign" onclick="setCardMode('design')">🎨 設計</button>
+      </div>
       <div class="view-toggle">
         <button class="vbtn on" id="vT" onclick="sv('table')">表格</button>
         <button class="vbtn" id="vC" onclick="sv('card')">卡片</button>
@@ -555,10 +596,6 @@ input[type=checkbox]{cursor:pointer;width:14px;height:14px;accent-color:var(--ac
           <div class="dp-brow" id="dpBrow"></div>
           <div class="dp-mdl" id="dpMdl"></div>
           <div class="dp-ser" id="dpSer"></div>
-          <div class="dp-price">
-            <div class="dp-ptw" id="dpPtw"></div>
-            <div class="dp-pus" id="dpPus"></div>
-          </div>
         </div>
         <div class="dp-body" id="dpBdy"></div>
         <div class="dp-act" id="dpAct"></div>
@@ -582,7 +619,7 @@ input[type=checkbox]{cursor:pointer;width:14px;height:14px;accent-color:var(--ac
 
 <script>
 
-let ALL=[],FD=[],selIdx=null,view='table',sortC='brand',sortD=1,cmpSet=new Set(),activePreset=null;
+let ALL=[],FD=[],selIdx=null,view='table',cardMode='spec',sortC='brand',sortD=1,cmpSet=new Set(),activePreset=null;
 const F={q:'',brand:[],screen:[],cpu:[],gpu:[],status:[],region:[],segment:[],form:[],series:''};
 
 const PRESETS=[
@@ -839,7 +876,145 @@ function updateStats(){
 
 // ── Render ──
 function isMobile(){return window.innerWidth<=720;}
-function render(){if(isMobile()||view==='card')renderCrd();else renderTbl();}
+function render(){
+  var isCard=isMobile()||view==='card';
+  updateCardModeToggle(isCard);
+  if(isCard)renderCrd();else renderTbl();
+}
+
+// Show/hide card mode toggle based on whether cards are displayed
+function updateCardModeToggle(showing){
+  var t=document.getElementById('cardModeToggle');
+  if(t)t.classList.toggle('show',showing);
+}
+
+function setCardMode(m){
+  cardMode=m;
+  document.getElementById('cmSpec').classList.toggle('on',m==='spec');
+  document.getElementById('cmDesign').classList.toggle('on',m==='design');
+  render();
+}
+
+// Truncate string to N chars, append … if cut (used by card view)
+function trunc(s,n){s=String(s||'');return s.length>n?s.substring(0,n).trim()+'…':s;}
+
+// Render a long-text row: if text > maxChars, show truncated + "展開" button
+// that toggles to full text + "收合" button. Uses unique IDs based on row key.
+var _exId=0;
+function longRow(label, text, maxChars){
+  if(!text)return '';
+  maxChars=maxChars||60;
+  var s=String(text);
+  if(s.length<=maxChars){
+    return '<div class="dp-row"><span class="dp-k">'+esc(label)+'</span><span class="dp-v dp-v-long">'+esc(s)+'</span></div>';
+  }
+  var id='ex'+(++_exId);
+  return '<div class="dp-row dp-row-col">'
+    +'<span class="dp-k">'+esc(label)+'</span>'
+    +'<div class="dp-v dp-v-long">'
+      +'<span id="'+id+'_s">'+esc(s.substring(0,maxChars).trim())+'…</span>'
+      +'<span id="'+id+'_f" style="display:none">'+esc(s)+'</span>'
+      +' <button class="dp-expand" id="'+id+'_b" onclick="toggleEx(\''+id+'\')">展開</button>'
+    +'</div>'
+    +'</div>';
+}
+function toggleEx(id){
+  var s=document.getElementById(id+'_s'),
+      f=document.getElementById(id+'_f'),
+      b=document.getElementById(id+'_b');
+  var open=f.style.display!=='none';
+  if(open){f.style.display='none';s.style.display='';b.textContent='展開';}
+  else    {f.style.display='';s.style.display='none';b.textContent='收合';}
+}
+
+// Detect ALL material keywords from materials text (English+Chinese mix).
+// Returns array of material categories in the order they appear in the text.
+// Categories: aluminum, magnesium, carbon, fiber, glass, plastic
+var MAT_PATS=[
+  // Order doesn't affect matching, only readability. Position-based dedup below.
+  // Longer/more specific patterns include negative lookahead where needed
+  // (e.g. 玻璃 must not match inside 玻璃纖維).
+  ['plastic',   /polycarbonate|pc[\s\-_+]*abs|pc[\s\-_+]*gf|塑膠|塑料|rubberized|\bplastic\b/g],
+  ['carbon',    /carbon[\s\-_]*fib|碳纖維|碳纖/g],
+  ['fiber',     /glass[\s\-_]*fib|fiberglass|玻璃纖維|玻纖/g],
+  ['glass',     /gorilla\s*glass|玻璃(?!纖)/g],
+  ['magnesium', /magnesium|鎂合金|鎂/g],
+  ['aluminum',  /\baluminum\b|\baluminium\b|鋁合金|鋁/g],
+];
+function detectMaterials(text){
+  if(!text)return [];
+  var t=String(text).toLowerCase();
+  var hits=[];  // [position, category]
+  MAT_PATS.forEach(function(p){
+    var name=p[0], re=new RegExp(p[1].source,'g');
+    var m;
+    while((m=re.exec(t))!==null){hits.push([m.index,name]);if(m.index===re.lastIndex)re.lastIndex++;}
+  });
+  hits.sort(function(a,b){return a[0]-b[0];});
+  var seen={}, out=[];
+  hits.forEach(function(h){if(!seen[h[1]]){seen[h[1]]=1;out.push(h[1]);}});
+  return out;
+}
+// Backward-compat: keep single-material detection too
+function detectMaterial(text){var m=detectMaterials(text);return m.length?m[0]:null;}
+
+var MAT_LABELS={aluminum:'鋁',magnesium:'鎂',carbon:'碳纖',fiber:'玻纖',glass:'玻璃',plastic:'塑料'};
+
+function matBadge(materials){
+  var mats=detectMaterials(materials);
+  if(!mats.length)return '';
+  // Limit to top 3 to avoid clutter
+  if(mats.length>3)mats=mats.slice(0,3);
+  var label=mats.map(function(m){return MAT_LABELS[m];}).join('・');
+  // Use the FIRST detected material's color as badge background
+  return '<span class="mat-badge mat-'+mats[0]+'">'+label+'</span>';
+}
+
+function renderCrd(){
+  if(!FD.length){renderEmpty();return;}
+  var cards=FD.map(function(d,i){
+    var head='<input class="card-chk" type="checkbox" '+(cmpSet.has(i)?'checked':'')+' onclick="event.stopPropagation();togCmp('+i+')" title="加入比較">'
+      +'<div class="card-top"><div>'+bTag(d.brand)+' '+segTag(d.segment)+matBadge(d.materials)+'</div><span class="rt">'+esc(d.region)+'</span></div>'
+      +'<div class="card-mdl">'+esc(d.model)+'</div>'
+      +'<div class="card-meta">'+esc(d.series)+' · '+esc(d.screen_size)+'" · '+stsTag(d.status)+'</div>';
+
+    var body;
+    if(cardMode==='design'){
+      // Design view: materials, colors, keyboard, fingerprint, touchpad, thermal
+      var rows=[];
+      if(d.materials)  rows.push(designRow('🔵','材質',trunc(d.materials,45)));
+      if(d.colors)     rows.push(designRow('🎨','顏色',trunc(d.colors,30)));
+      if(d.keyboard)   rows.push(designRow('⌨','鍵盤',trunc(d.keyboard,40)));
+      if(d.fingerprint)rows.push(designRow('🔘','指紋',trunc(d.fingerprint,40)));
+      if(d.touchpad)   rows.push(designRow('🪟','觸控板',trunc(d.touchpad,45)));
+      if(d.thermal)    rows.push(designRow('🌬','散熱',trunc(d.thermal,55)));
+      body=rows.length?rows.join(''):'<div style="color:var(--text3);font-size:11px;padding:8px 0">— 無設計細節資料 —</div>';
+    } else {
+      // Spec view: X/Y/Z, weight, battery, CPU/GPU
+      body='<div class="cst">'
+        +'<div class="cs"><div class="csl">重量</div><div class="csv">'+esc(d.weight_g||'—')+'g</div></div>'
+        +'<div class="cs"><div class="csl">電池</div><div class="csv">'+esc(d.battery_wh||'—')+'Wh</div></div>'
+        +'<div class="cs"><div class="csl">X · 寬</div><div class="csv">'+esc(d.width_mm||'—')+'mm</div></div>'
+        +'<div class="cs"><div class="csl">Y · 長</div><div class="csv">'+esc(d.depth_mm||'—')+'mm</div></div>'
+        +'<div class="cs"><div class="csl">Z · 厚</div><div class="csv">'+esc(d.thickness_mm||'—')+'mm</div></div>'
+        +'<div class="cs"><div class="csl">顯卡</div><div class="csv'+(d.gpu_type&&d.gpu_type.includes('dGPU')?' gpu-yes':'')+'">'+esc(d.gpu_type||'—')+'</div></div>'
+        +'</div>';
+    }
+
+    var price=d.price_tw?'<div class="card-price">NT$'+esc(String(d.price_tw))+'</div>':'';
+
+    return '<div class="card'+(i===selIdx?' sel':'')+'" onclick="selItem('+i+')">'+head+body+price+'</div>';
+  }).join('');
+  document.getElementById('mc').innerHTML='<div class="cg">'+cards+'</div>';
+}
+
+function designRow(icon,label,val){
+  return '<div class="card-design-row">'
+    +'<span class="card-design-icon">'+icon+'</span>'
+    +'<span class="card-design-label">'+label+'</span>'
+    +'<span class="card-design-val">'+esc(val)+'</span>'
+    +'</div>';
+}
 
 function renderTbl(){
   if(!FD.length){renderEmpty();return;}
@@ -860,26 +1035,6 @@ function renderTbl(){
   document.getElementById('mc').innerHTML='<div class="tw"><table><thead>'+hdr+'</thead><tbody>'+rows+'</tbody></table></div>';
 }
 
-function renderCrd(){
-  if(!FD.length){renderEmpty();return;}
-  var cards=FD.map(function(d,i){
-    return '<div class="card'+(i===selIdx?' sel':'')+'" onclick="selItem('+i+')">'
-      +'<input class="card-chk" type="checkbox" '+(cmpSet.has(i)?'checked':'')+' onclick="event.stopPropagation();togCmp('+i+')" title="加入比較">'
-      +'<div class="card-top"><div>'+bTag(d.brand)+' '+segTag(d.segment)+'</div><span class="rt">'+esc(d.region)+'</span></div>'
-      +'<div class="card-mdl">'+esc(d.model)+'</div>'
-      +'<div class="card-meta">'+esc(d.series)+' · '+esc(d.screen_size)+' · '+stsTag(d.status)+'</div>'
-      +'<div class="cst">'
-      +'<div class="cs"><div class="csl">重量</div><div class="csv">'+esc(d.weight_g||'—')+'g</div></div>'
-      +'<div class="cs"><div class="csl">電池</div><div class="csv">'+esc(d.battery_wh||'—')+'Wh</div></div>'
-      +'<div class="cs"><div class="csl">CPU</div><div class="csv">'+esc(d.cpu_platform||'—')+'</div></div>'
-      +'<div class="cs"><div class="csl">顯卡</div><div class="csv'+(d.gpu_type&&d.gpu_type.includes('dGPU')?' gpu-yes':'')+'">'+esc(d.gpu_type||'—')+'</div></div>'
-      +'</div>'
-      +(d.price_tw?'<div class="card-price">NT$'+esc(String(d.price_tw))+'</div>':'')
-      +'</div>';
-  }).join('');
-  document.getElementById('mc').innerHTML='<div class="cg">'+cards+'</div>';
-}
-
 function renderEmpty(){
   document.getElementById('mc').innerHTML='<div class="empty">'
     +'<div class="empty-i">🔍</div>'
@@ -892,23 +1047,93 @@ function renderEmpty(){
 // ── Detail Panel ──
 function selItem(i){
   selIdx=i;var d=FD[i];
-  document.getElementById('dpBrow').innerHTML=bTag(d.brand)+' '+segTag(d.segment)+' '+stsTag(d.status)+' <span class="rt">'+esc(d.region)+'</span>';
+  _exId=0;  // reset expandable IDs per render
+
+  // ── Header (no price; add material badges next to status) ──
+  document.getElementById('dpBrow').innerHTML=bTag(d.brand)+' '+segTag(d.segment)+' '+stsTag(d.status)+' <span class="rt">'+esc(d.region)+'</span>'+(d.materials?'<span class="dp-mat-badges">'+matBadge(d.materials)+'</span>':'');
   document.getElementById('dpMdl').textContent=d.model;
   document.getElementById('dpSer').textContent=d.series+(d.year?' · '+d.year:'');
-  document.getElementById('dpPtw').textContent=d.price_tw?'NT$ '+d.price_tw:'—';
-  document.getElementById('dpPus').textContent=d.price_us?'US$ '+d.price_us:'';
+
+  // ── Helpers ──
+  function r(l,v){if(!v||v==='—'||v==='')return'';return'<div class="dp-row"><span class="dp-k">'+esc(l)+'</span><span class="dp-v">'+esc(String(v))+'</span></div>';}
+  function sec(title,inner){return inner?'<div class="dp-sec"><div class="dp-sec-t">'+title+'</div>'+inner+'</div>':'';}
+
+  // GPU rendering with badge
   var hasGPU=d.gpu_type&&d.gpu_type.includes('dGPU');
   var gpuHtml=hasGPU
     ?'<span class="dp-v gpu-badge">● 有獨立顯卡'+(d.dgpu_model?' — '+esc(d.dgpu_model):'')+'</span>'
     :'<span class="dp-v no-gpu">無獨立顯卡 ('+esc(d.gpu_type||'—')+')</span>';
-  function r(l,v){if(!v||v==='—'||v==='')return'';return'<div class="dp-row"><span class="dp-k">'+esc(l)+'</span><span class="dp-v">'+esc(String(v))+'</span></div>';}
+
+  // ── 1. ⭐ 物理規格 ──
+  var physical=r('重量',d.weight_g?d.weight_g+' g':'')
+    +r('X · 寬',d.width_mm?d.width_mm+' mm':'')
+    +r('Y · 長',d.depth_mm?d.depth_mm+' mm':'')
+    +r('Z · 厚',d.thickness_mm?d.thickness_mm+' mm':'')
+    +r('螢幕尺寸',d.screen_size?d.screen_size+'"':'')
+    +r('螢幕種類',d.display_type)
+    +r('解析度',d.resolution)
+    +r('Form Factor',d.form_factor);
+
+  // ── 2. ⭐ 外觀與工藝 (long texts use expandable rows) ──
+  var craft=longRow('材質',d.materials,60)
+    +r('機台顏色',d.colors)
+    +longRow('鍵盤',d.keyboard,60)
+    +longRow('指紋',d.fingerprint,50)
+    +longRow('觸控板',d.touchpad,60)
+    +longRow('散熱',d.thermal,60);
+
+  // ── 3. 效能 ──
+  var perf=r('CPU 平台',d.cpu_platform)
+    +'<div class="dp-row"><span class="dp-k">顯示晶片</span>'+gpuHtml+'</div>';
+
+  // ── 4. 電力與 I/O ──
+  // Battery: prefer rich battery_full text (with expand), else short battery_wh
+  var io;
+  if(d.battery_full&&d.battery_full.length>60){
+    io=longRow('電池',d.battery_full,60);
+  } else if(d.battery_full){
+    io='<div class="dp-row"><span class="dp-k">電池</span><span class="dp-v">'+esc(d.battery_full)+'</span></div>';
+  } else if(d.battery_wh){
+    io='<div class="dp-row"><span class="dp-k">電池</span><span class="dp-v">'+esc(d.battery_wh)+' Wh</span></div>';
+  } else { io=''; }
+  io+=longRow('I/O 端口',d.io_left,80)
+    +r('前鏡頭',d.webcam)
+    +r('數字鍵區',d.numpad);
+
+  // ── 5. 對標與世代 ──
+  var lineage=r('對標系列',d.benchmark_series)
+    +r('Generation',d.generation)
+    +longRow('備註',d.notes,80);
+
+  // ── 6. 資料來源 (collapsed by default via <details>) ──
+  var sourceInner=
+    (d.url_tw?'<div class="dp-row"><span class="dp-k">TW 官網</span><a class="dp-v" style="color:var(--accent);text-decoration:none" href="'+esc(d.url_tw)+'" target="_blank" rel="noopener">連結 ↗</a></div>':'')
+    +(d.url_us?'<div class="dp-row"><span class="dp-k">US 官網</span><a class="dp-v" style="color:var(--accent);text-decoration:none" href="'+esc(d.url_us)+'" target="_blank" rel="noopener">連結 ↗</a></div>':'')
+    +longRow('散熱/觸控板來源',d.thermal_touchpad_source,80)
+    +longRow('補充資料來源',d.source_extra,80)
+    +r('最後核實',d.last_verified)
+    +r('首次建立',d.first_created);
+  var sourceBlock=sourceInner?'<details class="dp-sec"><summary class="dp-sec-t" style="cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between">資料來源 <span style="font-size:9px">▾</span></summary>'+sourceInner+'</details>':'';
+
+  // ── Build full body ──
   document.getElementById('dpBdy').innerHTML=
-    '<div class="dp-sec"><div class="dp-sec-t">螢幕</div>'+r('尺寸',d.screen_size)+r('種類',d.display_type)+r('解析度',d.resolution)+r('Form Factor',d.form_factor)+'</div>'
-   +'<div class="dp-sec"><div class="dp-sec-t">效能</div>'+r('CPU 平台',d.cpu_platform)+'<div class="dp-row"><span class="dp-k">顯示晶片</span>'+gpuHtml+'</div></div>'
-   +'<div class="dp-sec"><div class="dp-sec-t">機身</div>'+r('重量',d.weight_g?d.weight_g+' g':'')+r('X · 寬',d.width_mm?d.width_mm+' mm':'')+r('Y · 長',d.depth_mm?d.depth_mm+' mm':'')+r('Z · 厚',d.thickness_mm?d.thickness_mm+' mm':'')+'</div>'
-   +'<div class="dp-sec"><div class="dp-sec-t">電力・周邊</div>'+r('電池',d.battery_wh?d.battery_wh+' Wh':'')+r('前鏡頭',d.webcam)+r('數字鍵區',d.numpad)+r('左側 I/O',d.io_left)+r('右側 I/O',d.io_right)+'</div>'
-   +'<div class="dp-sec"><div class="dp-sec-t">上市資訊</div>'+r('上市年份',d.year)+r('世代',d.generation)+r('最後核實',d.last_verified)+'</div>';
-  document.getElementById('dpAct').innerHTML=d.url?'<a href="'+esc(d.url)+'" target="_blank" rel="noopener" class="dp-link">前往官方網頁 ↗</a>':'';
+     sec('⭐ 物理規格',physical)
+    +sec('⭐ 外觀與工藝',craft)
+    +sec('效能',perf)
+    +sec('電力與 I/O',io)
+    +sec('對標與世代',lineage)
+    +sourceBlock
+    +(d.price_tw||d.price_us
+      ?'<div class="dp-final-price">'
+        +(d.price_tw?'<div class="dp-final-price-row"><span class="dp-final-k">NT$ MSRP</span><span class="dp-final-v'+(d.price_tw==='洽詢'?' muted':'')+'">'+esc(d.price_tw)+'</span></div>':'')
+        +(d.price_us?'<div class="dp-final-price-row"><span class="dp-final-k">US$ MSRP</span><span class="dp-final-v'+(d.price_us==='—'?' muted':'')+'">'+esc(d.price_us)+'</span></div>':'')
+      +'</div>'
+      :'');
+
+  // Primary action button: prefer TW URL, fallback US
+  var url=d.url_tw||d.url_us;
+  document.getElementById('dpAct').innerHTML=url?'<a href="'+esc(url)+'" target="_blank" rel="noopener" class="dp-link">前往官方網頁 ↗</a>':'';
+
   document.getElementById('dp').classList.add('open');
   render();
 }
