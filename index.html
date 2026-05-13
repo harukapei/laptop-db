@@ -548,7 +548,7 @@ details.dp-sec[open] > summary.dp-sec-t::after{content:'▴ 點擊收合'}
       </div>
     </details>
 
-    <details class="fg">
+    <details class="fg" open>
       <summary>進階篩選</summary>
       <div class="fg-content">
         <div class="sf">
@@ -643,7 +643,7 @@ details.dp-sec[open] > summary.dp-sec-t::after{content:'▴ 點擊收合'}
       <button class="sbtn" id="sb2" onclick="ss('width_mm')">X · 寬</button>
       <button class="sbtn" id="sb3" onclick="ss('depth_mm')">Y · 長</button>
       <button class="sbtn" id="sb4" onclick="ss('thickness_mm')">Z · 厚</button>
-      <button class="sbtn" id="sb5" onclick="ss('screen_size')">螢幕</button>
+      <button class="sbtn" id="sb5" onclick="ss('screen_size')">尺吋</button>
       <span class="sort-divider"></span>
       <button class="sbtn sec" id="sb6" onclick="ss('last_verified')">最後更新</button>
       <div class="card-mode-toggle" id="cardModeToggle">
@@ -725,7 +725,7 @@ function pY(d){const m=String(d.depth_mm||'').match(/\d+(?:\.\d+)?/g);return m?M
 // ── Tags ──
 function bTag(b){const c={Dell:'bt-dell',HP:'bt-hp',Lenovo:'bt-lenovo'}[b]||'';return'<span class="bt '+c+'">'+esc(b)+'</span>';}
 function segTag(s){const c={Consumer:'sc',Gaming:'sg',Commercial:'sb','Mobile WS':'sw2'}[s]||'';return'<span class="seg '+c+'">'+esc(s)+'</span>';}
-function stsTag(s){const c=s==='在售'?'s-on':s==='即將推出'?'s-soon':'s-off';return'<span class="sts '+c+'">'+esc(s)+'</span>';}
+function stsTag(s){const c=s==='在售'?'s-on':(s==='即將上市'||s==='即將推出')?'s-soon':'s-off';return'<span class="sts '+c+'">'+esc(s)+'</span>';}
 
 // ── Smart search parser ──
 function parseQuery(raw){
@@ -774,44 +774,78 @@ fetch('data.json')
   .catch(function(e){document.getElementById('ls').innerHTML='<div style="color:#f87171;padding:20px;font-size:14px">資料載入失敗：'+e.message+'</div>';});
 
 function initUI(){
-  mkPills('brandP','brand',['Dell','HP','Lenovo'],function(v){return {Dell:'pd',HP:'ph',Lenovo:'pl'}[v]||'';});
-  updateSeriesDropdown();
-  // Screen: integer sizes only
-  var allInches=[...new Set(ALL.map(function(d){return Math.floor(parseFloat(d.screen_size)||0);}).filter(function(v){return v>0;}))].sort(function(a,b){return a-b;});
-  document.getElementById('screenP').innerHTML=allInches.map(function(v){
+  // ── Build pills DRIVEN BY ACTUAL DATA ──
+  // Helper: filter a candidate list to only those that have at least one record
+  function present(candidates, predicate){
+    return candidates.filter(function(c){return ALL.some(function(d){return predicate(d, c);});});
+  }
+
+  // Brand
+  mkPills('brandP','brand', present(['Dell','HP','Lenovo'], function(d,c){return d.brand===c;}),
+          function(v){return {Dell:'pd',HP:'ph',Lenovo:'pl'}[v]||'';});
+
+  // Series dropdown - already dynamic, no change needed
+
+  // Screen size pill - 12 to 18 inch (handled separately, also auto-skips empty)
+  var inchVals=[12,13,14,15,16,17,18].filter(function(v){return ALL.some(function(d){return Math.floor(parseFloat(d.screen_size||0))===v;});});
+  document.getElementById('screenP').innerHTML=inchVals.map(function(v){
     return '<div class="pill" onclick="togScreen(this,'+v+')">' + v + '"</div>';
   }).join('');
-  // GPU with labels
-  var gpuItems=[{label:'iGPU / 內顯',val:'iGPU'},{label:'dGPU / 獨顯',val:'dGPU'},{label:'iGPU + dGPU',val:'iGPU/dGPU'}];
+
+  // CPU
+  mkPills('cpuP','cpu', present(['Intel','AMD','Qualcomm'], function(d,c){return d.cpu_platform&&d.cpu_platform.includes(c);}),null);
+
+  // GPU — BUG FIX: data uses "iGPU+dGPU" with +; pill val must match exactly
+  var gpuCandidates=[
+    {label:'iGPU / 內顯', val:'iGPU'},
+    {label:'dGPU / 獨顯', val:'dGPU'},
+    {label:'iGPU + dGPU', val:'iGPU+dGPU'},
+  ];
+  var gpuItems=gpuCandidates.filter(function(it){return ALL.some(function(d){return d.gpu_type===it.val;});});
   document.getElementById('gpuP').innerHTML=gpuItems.map(function(item){
-    return '<div class="pill" data-val="'+item.val+'" onclick="togGpu(this,\''+item.val+'\')">'+item.label+'</div>';
+    return '<div class="pill" data-val="'+item.val+'" onclick="togGpu(this,\''+item.val+'\')">'+esc(item.label)+'</div>';
   }).join('');
-  // Screen type
-  var stItems=[
+
+  // Screen type — auto-hide types with no data
+  var stCandidates=[
     {label:'✨ OLED',       val:'oled'},
     {label:'💎 Tandem OLED', val:'tandem'},
     {label:'🔹 IPS',         val:'ips'},
     {label:'⬜ LCD',         val:'lcd'},
     {label:'🌟 Mini LED',    val:'miniled'},
   ];
+  var stItems=stCandidates.filter(function(it){return ALL.some(function(d){return screenTypeMatch(d,it.val);});});
   document.getElementById('screenTypeP').innerHTML=stItems.map(function(it){
     return '<div class="pill" onclick="togScreenType(this,\''+it.val+'\')">'+esc(it.label)+'</div>';
   }).join('');
-  // Year: dynamic from data, descending (newest first)
+
+  // Year - dynamic from data, descending
   var years=[...new Set(ALL.map(function(d){return String(d.year||'').trim();}).filter(Boolean))]
     .sort(function(a,b){return parseInt(b)-parseInt(a);});
   document.getElementById('yearP').innerHTML=years.map(function(v){
     return '<div class="pill" onclick="togYear(this,\''+v+'\')">'+esc(v)+'</div>';
   }).join('');
-  mkPills('cpuP','cpu',['Intel','AMD','Qualcomm'],null);
-  mkPills('statusP','status',['在售','即將推出'],null);
-  mkPills('regionP','region',['TW','TW/US','US'],null);
-  mkPills('segP','segment',['Consumer','Gaming','Commercial','Mobile WS'],null);
-  mkPills('formP','form',['Clamshell','2-in-1'],null);
 
-  // Designer-oriented filters
-  // Material: derived via detectMaterials() — categorical keys
-  var matItems=[
+  // Status — BUG FIX: data uses "即將上市", was hard-coded "即將推出"
+  // Now built from actual values present in data (excluding 停售/改名 which is hidden by default)
+  var statusVals=[...new Set(ALL.map(function(d){return d.status;}).filter(function(v){return v&&v!=='停售/改名';}))];
+  mkPills('statusP','status',statusVals,null);
+
+  // Region
+  mkPills('regionP','region', present(['TW','TW/US','US'], function(d,c){return d.region===c;}),null);
+
+  // Segment
+  mkPills('segP','segment', present(['Consumer','Gaming','Commercial','Mobile WS','Business','Business / Rugged'],
+                                    function(d,c){return d.segment===c;}), null);
+
+  // Form Factor — auto-derived from data
+  var formVals=[...new Set(ALL.map(function(d){return d.form_factor;}).filter(Boolean))].sort();
+  mkPills('formP','form',formVals,null);
+
+  // ── Designer filters ──
+
+  // Material — only show types that exist in some record
+  var matCandidates=[
     {label:'🔵 鋁',  val:'aluminum'},
     {label:'⚫ 鎂',  val:'magnesium'},
     {label:'■ 碳纖', val:'carbon'},
@@ -819,25 +853,31 @@ function initUI(){
     {label:'◊ 玻纖', val:'fiber'},
     {label:'○ 塑料', val:'plastic'},
   ];
+  var matItems=matCandidates.filter(function(it){
+    return ALL.some(function(d){return detectMaterials(d.materials).indexOf(it.val)>=0;});
+  });
   document.getElementById('matP').innerHTML=matItems.map(function(it){
     return '<div class="pill" onclick="togMat(this,\''+it.val+'\')">'+esc(it.label)+'</div>';
   }).join('');
 
-  // Fingerprint: 3 buckets
-  var fpItems=[
+  // Fingerprint — same data-driven approach
+  var fpCandidates=[
     {label:'🔘 整合電源鍵', val:'power'},
     {label:'• 獨立指紋',    val:'standalone'},
     {label:'○ 無',          val:'none'},
   ];
+  var fpItems=fpCandidates.filter(function(it){
+    return ALL.some(function(d){return fpBucket(d.fingerprint)===it.val;});
+  });
   document.getElementById('fpP').innerHTML=fpItems.map(function(it){
     return '<div class="pill" onclick="togFp(this,\''+it.val+'\')">'+esc(it.label)+'</div>';
   }).join('');
 
-  // Numpad: 3 buckets
+  // Numpad: only "有" / "無" (CHANGED: mixed records appear in BOTH buckets,
+  // because "14\"=無 / 16\"=有" semantically has both states present)
   var numItems=[
-    {label:'• 有',    val:'yes'},
-    {label:'○ 無',    val:'no'},
-    {label:'⌖ 依尺寸', val:'mixed'},
+    {label:'• 有', val:'yes'},
+    {label:'○ 無', val:'no'},
   ];
   document.getElementById('numP').innerHTML=numItems.map(function(it){
     return '<div class="pill" onclick="togNum(this,\''+it.val+'\')">'+esc(it.label)+'</div>';
@@ -846,7 +886,6 @@ function initUI(){
   // Benchmark series: dynamic from data
   var benches=[...new Set(ALL.map(function(d){return d.benchmark_series;}).filter(Boolean))]
     .sort(function(a,b){
-      // 無對標 last; rest alphabetical
       if(a==='無對標')return 1; if(b==='無對標')return -1;
       return a.localeCompare(b);
     });
@@ -858,7 +897,10 @@ function initUI(){
   document.getElementById('presets').innerHTML=PRESETS.map(function(p){
     return '<div class="preset" id="'+p.id+'" onclick="togPreset(\''+p.id+'\')">'+p.icon+' '+esc(p.label)+'</div>';
   }).join('');
+
+  updateSeriesDropdown();
 }
+
 
 function mkPills(id,key,vals,clsFn){
   document.getElementById(id).innerHTML=vals.map(function(v){
@@ -933,19 +975,21 @@ function fpBucket(t){
   if(t.startsWith('Yes')||t.startsWith('Optional'))return 'standalone';
   return 'none';
 }
-// Classify numpad text into 3 buckets (yes/no/mixed)
-function numpadBucket(t){
+// Classify numpad text into "yes" and/or "no" buckets.
+// Records that describe size-dependent numpads (e.g. "14\"=無 / 16\"=有")
+// belong to BOTH buckets — designers searching for either should find them.
+function numpadBuckets(t){
   t=String(t||'').trim();
-  if(!t||t==='—')return null;
-  if(t==='無'||t==='No')return 'no';
-  if(t==='有'||t==='Yes')return 'yes';
-  // Complex/mixed entries: "14\"=無 / 16\"=有", "可選", "Optional", etc.
-  var hasYes=/有|Yes/.test(t), hasNo=/無|No/.test(t);
-  if(hasYes&&hasNo)return 'mixed';
-  if(/可選|Optional|選配|推測/.test(t))return 'mixed';
-  if(hasYes)return 'yes';
-  if(hasNo)return 'no';
-  return null;
+  if(!t||t==='—')return [];
+  var hasYes=/有|Yes/.test(t)||/可選|Optional|選配|推測/.test(t);
+  var hasNo=/無|No/.test(t);
+  // Simple "有" or "無" alone
+  if(t==='有')return ['yes'];
+  if(t==='無')return ['no'];
+  var out=[];
+  if(hasYes)out.push('yes');
+  if(hasNo)out.push('no');
+  return out;
 }
 function togPreset(id){
   if(activePreset===id){activePreset=null;document.getElementById(id).classList.remove('on');}
@@ -1047,7 +1091,7 @@ function apply(){
       if(!F.material.some(function(m){return mats.indexOf(m)>=0;}))return false;
     }
     if(F.fp.length&&!F.fp.includes(fpBucket(d.fingerprint)))return false;
-    if(F.numpad.length){var nb=numpadBucket(d.numpad);if(!F.numpad.includes(nb))return false;}
+    if(F.numpad.length){var nbs=numpadBuckets(d.numpad);if(!F.numpad.some(function(v){return nbs.indexOf(v)>=0;}))return false;}
     if(F.bench.length&&!F.bench.includes(d.benchmark_series))return false;
     // Free-text filters from 進階篩選
     if(taF&&!(d.target_audience||'').toLowerCase().includes(taF))return false;
