@@ -573,6 +573,10 @@ details.dp-sec[open] > summary.dp-sec-t::after{content:'▴ 點擊收合'}
           <span class="sf-t">市場</span>
           <div class="pills" id="regionP"></div>
         </div>
+        <div class="sf">
+          <span class="sf-t">Copilot+ PC 認證</span>
+          <div class="pills" id="copilotP"></div>
+        </div>
 
         <div class="sf">
           <span class="sf-t">目標客群（關鍵字）</span>
@@ -706,7 +710,7 @@ details.dp-sec[open] > summary.dp-sec-t::after{content:'▴ 點擊收合'}
 <script>
 
 let ALL=[],FD=[],selIdx=null,view='table',cardMode='spec',sortC='brand',sortD=1,cmpSet=new Set(),activePreset=null;
-const F={q:'',brand:[],screen:[],screenType:[],cpu:[],gpu:[],status:[],region:[],segment:[],form:[],series:'',material:[],fp:[],numpad:[],bench:[],year:[]};
+const F={q:'',brand:[],screen:[],screenType:[],cpu:[],gpu:[],status:[],region:[],segment:[],form:[],series:'',material:[],fp:[],numpad:[],bench:[],year:[],copilot:[]};
 
 const PRESETS=[
   {id:'p1', icon:'⚡', label:'輕薄 <1.5kg',  fn:d=>pW(d)<1500},
@@ -899,6 +903,18 @@ function initUI(){
     return '<div class="pill" onclick="togNum(this,\''+it.val+'\')">'+esc(it.label)+'</div>';
   }).join('');
 
+  // Copilot+ PC: 2 buckets (Yes / No). "待驗證" records don't match either.
+  var copilotCandidates=[
+    {label:'✓ Copilot+',     val:'yes'},
+    {label:'✗ 非 Copilot+',  val:'no'},
+  ];
+  var copilotItems=copilotCandidates.filter(function(it){
+    return ALL.some(function(d){return copilotBucket(d.copilot_plus)===it.val;});
+  });
+  document.getElementById('copilotP').innerHTML=copilotItems.map(function(it){
+    return '<div class="pill" onclick="togCopilot(this,\''+it.val+'\')">'+esc(it.label)+'</div>';
+  }).join('');
+
   // Benchmark series: dynamic from data
   var benches=[...new Set(ALL.map(function(d){return d.benchmark_series;}).filter(Boolean))]
     .sort(function(a,b){
@@ -1004,6 +1020,21 @@ function togBench(el,val){
   var i=F.bench.indexOf(val);
   if(i===-1){F.bench.push(val);el.classList.add('on');}else{F.bench.splice(i,1);el.classList.remove('on');}
   apply();
+}
+function togCopilot(el,val){
+  var i=F.copilot.indexOf(val);
+  if(i===-1){F.copilot.push(val);el.classList.add('on');}else{F.copilot.splice(i,1);el.classList.remove('on');}
+  apply();
+}
+// Copilot+ PC: classify into yes/no/null based on string prefix.
+// Variants like "No（NPU 未達 40 TOPS 門檻）" still bucket as 'no'.
+// "待驗證..." records return null (not in any pill — data not confirmed).
+function copilotBucket(t){
+  t=String(t||'').trim();
+  if(!t)return null;
+  if(t.indexOf('Yes')===0)return 'yes';
+  if(t.indexOf('No')===0)return 'no';
+  return null;
 }
 // Classify fingerprint text into 3 buckets
 function fpBucket(t){
@@ -1141,6 +1172,7 @@ function apply(){
     if(F.fp.length&&!F.fp.includes(fpBucket(d.fingerprint)))return false;
     if(F.numpad.length){var nbs=numpadBuckets(d.numpad);if(!F.numpad.some(function(v){return nbs.indexOf(v)>=0;}))return false;}
     if(F.bench.length&&!F.bench.includes(d.benchmark_series))return false;
+    if(F.copilot.length&&!F.copilot.includes(copilotBucket(d.copilot_plus)))return false;
     // Free-text filters from 進階篩選 — multi-keyword AND
     if(!matchTokens(taF,d.target_audience))return false;
     if(!matchTokens(ucF,d.use_cases))return false;
