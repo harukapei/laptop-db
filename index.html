@@ -64,12 +64,13 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:0
 .fg:last-of-type{border-bottom:none}
 .fg summary{padding:14px;cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between;font-size:11px;font-weight:600;letter-spacing:1.2px;text-transform:uppercase;color:var(--text2);transition:color var(--tr);user-select:none}
 .fg summary::-webkit-details-marker{display:none}
-.fg summary:hover{color:var(--text)}
+.fg summary:hover{color:var(--text);background:var(--surface2)}
 .fg summary::after{content:'▾';font-size:10px;transition:transform var(--tr);color:var(--text3)}
 .fg[open] summary::after{transform:rotate(180deg)}
 .fg-content{padding-bottom:8px}
 .fg-content .sf{border-bottom:1px solid var(--surface2);padding:10px 14px}
 .fg-content .sf:last-child{border-bottom:none}
+.fg-tag-new{font-size:9px;font-weight:700;letter-spacing:.3px;background:var(--accent);color:#fff;padding:1px 6px;border-radius:8px;margin-left:6px;text-transform:none;vertical-align:middle}
 
 /* SEARCH */
 .sw{position:relative}
@@ -262,9 +263,24 @@ input[type=checkbox]{cursor:pointer;width:14px;height:14px;accent-color:var(--ac
 .dp-row-col{flex-direction:column;align-items:stretch;gap:4px}
 .dp-row-col .dp-k{font-weight:600}
 .dp-row-col .dp-v-long{text-align:left}
-.dp-expand{background:none;border:none;color:var(--accent);font-size:11px;cursor:pointer;padding:0 0 0 4px;font-family:var(--fn)}
-.dp-expand:hover{text-decoration:underline}
+.dp-expand-inline{color:var(--accent);font-size:11px;cursor:pointer;font-weight:500;white-space:nowrap;margin-left:2px}
+.dp-expand-inline:hover{text-decoration:underline}
 .dp-mat-badges{display:inline-flex;gap:4px;margin-left:4px;flex-wrap:wrap}
+/* Collapsible source section: make it visibly clickable */
+details.dp-sec[open] > summary.dp-sec-t{margin-bottom:9px;border-bottom:1px solid var(--surface2)}
+details.dp-sec > summary.dp-sec-t{
+  cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between;
+  padding:8px 10px;margin:-8px -10px;border-radius:var(--r);
+  background:var(--surface2);border-bottom:1px solid transparent;
+  transition:background var(--tr);
+}
+details.dp-sec > summary.dp-sec-t:hover{background:var(--surface3);color:var(--text)}
+details.dp-sec > summary.dp-sec-t::-webkit-details-marker{display:none}
+details.dp-sec > summary.dp-sec-t::after{
+  content:'▾ 點擊展開';font-size:9px;font-weight:500;letter-spacing:.3px;
+  color:var(--accent);text-transform:none;transition:transform var(--tr);
+}
+details.dp-sec[open] > summary.dp-sec-t::after{content:'▴ 點擊收合'}
 .dp-final-price{padding:14px 16px;background:var(--surface2);border-top:1px solid var(--border);margin-top:8px}
 .dp-final-price-row{display:flex;justify-content:space-between;align-items:baseline}
 .dp-final-price-row+.dp-final-price-row{margin-top:4px}
@@ -490,6 +506,26 @@ input[type=checkbox]{cursor:pointer;width:14px;height:14px;accent-color:var(--ac
       </div>
     </details>
 
+    <details class="fg" open>
+      <summary>設計細節 <span class="fg-tag-new">設計師</span></summary>
+      <div class="fg-content">
+        <div class="sf">
+          <span class="sf-t">主要材質</span>
+          <div class="pills" id="matP"></div>
+          <div class="search-hint">含此材質即會列出（一台筆電通常有多材質）</div>
+        </div>
+        <div class="sf">
+          <span class="sf-t">指紋辨識</span>
+          <div class="pills" id="fpP"></div>
+        </div>
+        <div class="sf">
+          <span class="sf-t">對標系列</span>
+          <div class="pills" id="benchP"></div>
+        </div>
+        <div class="search-hint" style="padding:0 14px 6px">💡 顏色、散熱、觸控板等可在<b>快速搜尋</b>內直接用文字找<br>例：搜尋「銀」「Vapor」「Haptic」</div>
+      </div>
+    </details>
+
     <details class="fg">
       <summary>進階篩選</summary>
       <div class="fg-content">
@@ -620,7 +656,7 @@ input[type=checkbox]{cursor:pointer;width:14px;height:14px;accent-color:var(--ac
 <script>
 
 let ALL=[],FD=[],selIdx=null,view='table',cardMode='spec',sortC='brand',sortD=1,cmpSet=new Set(),activePreset=null;
-const F={q:'',brand:[],screen:[],cpu:[],gpu:[],status:[],region:[],segment:[],form:[],series:''};
+const F={q:'',brand:[],screen:[],cpu:[],gpu:[],status:[],region:[],segment:[],form:[],series:'',material:[],fp:[],bench:[]};
 
 const PRESETS=[
   {id:'p1', icon:'⚡', label:'輕薄 <1.5kg',  fn:d=>pW(d)<1500},
@@ -712,6 +748,42 @@ function initUI(){
   mkPills('regionP','region',['TW','TW/US','US'],null);
   mkPills('segP','segment',['Consumer','Gaming','Commercial','Mobile WS'],null);
   mkPills('formP','form',['Clamshell','2-in-1'],null);
+
+  // Designer-oriented filters
+  // Material: derived via detectMaterials() — categorical keys
+  var matItems=[
+    {label:'🔵 鋁',  val:'aluminum'},
+    {label:'⚫ 鎂',  val:'magnesium'},
+    {label:'■ 碳纖', val:'carbon'},
+    {label:'◊ 玻璃', val:'glass'},
+    {label:'◊ 玻纖', val:'fiber'},
+    {label:'○ 塑料', val:'plastic'},
+  ];
+  document.getElementById('matP').innerHTML=matItems.map(function(it){
+    return '<div class="pill" onclick="togMat(this,\''+it.val+'\')">'+esc(it.label)+'</div>';
+  }).join('');
+
+  // Fingerprint: 3 buckets
+  var fpItems=[
+    {label:'🔘 整合電源鍵', val:'power'},
+    {label:'• 獨立指紋',    val:'standalone'},
+    {label:'○ 無',          val:'none'},
+  ];
+  document.getElementById('fpP').innerHTML=fpItems.map(function(it){
+    return '<div class="pill" onclick="togFp(this,\''+it.val+'\')">'+esc(it.label)+'</div>';
+  }).join('');
+
+  // Benchmark series: dynamic from data
+  var benches=[...new Set(ALL.map(function(d){return d.benchmark_series;}).filter(Boolean))]
+    .sort(function(a,b){
+      // 無對標 last; rest alphabetical
+      if(a==='無對標')return 1; if(b==='無對標')return -1;
+      return a.localeCompare(b);
+    });
+  document.getElementById('benchP').innerHTML=benches.map(function(v){
+    return '<div class="pill" onclick="togBench(this,\''+v.replace(/'/g,"\\\\'")+'\')">'+esc(v)+'</div>';
+  }).join('');
+
   // Presets
   document.getElementById('presets').innerHTML=PRESETS.map(function(p){
     return '<div class="preset" id="'+p.id+'" onclick="togPreset(\''+p.id+'\')">'+p.icon+' '+esc(p.label)+'</div>';
@@ -739,6 +811,29 @@ function togGpu(el,val){
   var i=F.gpu.indexOf(val);
   if(i===-1){F.gpu.push(val);el.classList.add('on');}else{F.gpu.splice(i,1);el.classList.remove('on');}
   apply();
+}
+function togMat(el,val){
+  var i=F.material.indexOf(val);
+  if(i===-1){F.material.push(val);el.classList.add('on');}else{F.material.splice(i,1);el.classList.remove('on');}
+  apply();
+}
+function togFp(el,val){
+  var i=F.fp.indexOf(val);
+  if(i===-1){F.fp.push(val);el.classList.add('on');}else{F.fp.splice(i,1);el.classList.remove('on');}
+  apply();
+}
+function togBench(el,val){
+  var i=F.bench.indexOf(val);
+  if(i===-1){F.bench.push(val);el.classList.add('on');}else{F.bench.splice(i,1);el.classList.remove('on');}
+  apply();
+}
+// Classify fingerprint text into 3 buckets
+function fpBucket(t){
+  t=String(t||'').trim();
+  if(!t||t.startsWith('No')||t.startsWith('待驗證'))return 'none';
+  if(/電源鍵/.test(t))return 'power';
+  if(t.startsWith('Yes')||t.startsWith('Optional'))return 'standalone';
+  return 'none';
 }
 function togPreset(id){
   if(activePreset===id){activePreset=null;document.getElementById(id).classList.remove('on');}
@@ -827,6 +922,13 @@ function apply(){
     if(F.region.length&&!F.region.includes(d.region))return false;
     if(F.segment.length&&!F.segment.includes(d.segment))return false;
     if(F.form.length&&!F.form.includes(d.form_factor))return false;
+    // Designer filters
+    if(F.material.length){
+      var mats=detectMaterials(d.materials);
+      if(!F.material.some(function(m){return mats.indexOf(m)>=0;}))return false;
+    }
+    if(F.fp.length&&!F.fp.includes(fpBucket(d.fingerprint)))return false;
+    if(F.bench.length&&!F.bench.includes(d.benchmark_series))return false;
     if(wLo>0&&pW(d)<wLo)return false;
     if(wHi>0&&pW(d)>wHi)return false;
     if(xMin>0&&pX(d)<xMin)return false;
@@ -839,7 +941,8 @@ function apply(){
     if(pMax>0){var p2=parseInt(String(d.price_tw).replace(/[^0-9]/g,''))||0;if(p2>0&&p2>pMax)return false;}
     if(rules.length&&!rules.every(function(r){return applyRule(d,r);}))return false;
     if(tokens.length){
-      var hay=[d.brand,d.series,d.model,d.cpu_platform,d.gpu_type,d.dgpu_model,d.display_type,d.screen_size,d.region,d.status].join(' ').toLowerCase();
+      var hay=[d.brand,d.series,d.model,d.cpu_platform,d.gpu_type,d.dgpu_model,d.display_type,d.screen_size,d.region,d.status,
+              d.materials,d.colors,d.keyboard,d.touchpad,d.thermal,d.fingerprint,d.benchmark_series,d.generation].join(' ').toLowerCase();
       if(!tokens.every(function(t){return hay.includes(t);}))return false;
     }
     if(activePresetObj&&!activePresetObj.fn(d))return false;
@@ -898,8 +1001,8 @@ function setCardMode(m){
 // Truncate string to N chars, append … if cut (used by card view)
 function trunc(s,n){s=String(s||'');return s.length>n?s.substring(0,n).trim()+'…':s;}
 
-// Render a long-text row: if text > maxChars, show truncated + "展開" button
-// that toggles to full text + "收合" button. Uses unique IDs based on row key.
+// Render a long-text row: if text > maxChars, show truncated + "… 詳請展開"
+// inline clickable prompt that toggles to full text + "收合" link.
 var _exId=0;
 function longRow(label, text, maxChars){
   if(!text)return '';
@@ -911,20 +1014,22 @@ function longRow(label, text, maxChars){
   var id='ex'+(++_exId);
   return '<div class="dp-row dp-row-col">'
     +'<span class="dp-k">'+esc(label)+'</span>'
-    +'<div class="dp-v dp-v-long">'
-      +'<span id="'+id+'_s">'+esc(s.substring(0,maxChars).trim())+'…</span>'
-      +'<span id="'+id+'_f" style="display:none">'+esc(s)+'</span>'
-      +' <button class="dp-expand" id="'+id+'_b" onclick="toggleEx(\''+id+'\')">展開</button>'
+    +'<div class="dp-v dp-v-long" id="'+id+'_wrap">'
+      +'<span id="'+id+'_s">'+esc(s.substring(0,maxChars).trim())
+        +'<span class="dp-expand-inline" onclick="event.stopPropagation();toggleEx(\''+id+'\')">… 詳請展開</span>'
+      +'</span>'
+      +'<span id="'+id+'_f" style="display:none">'+esc(s)
+        +' <span class="dp-expand-inline" onclick="event.stopPropagation();toggleEx(\''+id+'\')">收合 ▴</span>'
+      +'</span>'
     +'</div>'
     +'</div>';
 }
 function toggleEx(id){
-  var s=document.getElementById(id+'_s'),
-      f=document.getElementById(id+'_f'),
-      b=document.getElementById(id+'_b');
-  var open=f.style.display!=='none';
-  if(open){f.style.display='none';s.style.display='';b.textContent='展開';}
-  else    {f.style.display='';s.style.display='none';b.textContent='收合';}
+  var sShort=document.getElementById(id+'_s'),
+      sFull =document.getElementById(id+'_f');
+  var open=sFull.style.display!=='none';
+  if(open){sFull.style.display='none';sShort.style.display='';}
+  else    {sFull.style.display='';sShort.style.display='none';}
 }
 
 // Detect ALL material keywords from materials text (English+Chinese mix).
@@ -1113,7 +1218,7 @@ function selItem(i){
     +longRow('補充資料來源',d.source_extra,80)
     +r('最後核實',d.last_verified)
     +r('首次建立',d.first_created);
-  var sourceBlock=sourceInner?'<details class="dp-sec"><summary class="dp-sec-t" style="cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between">資料來源 <span style="font-size:9px">▾</span></summary>'+sourceInner+'</details>':'';
+  var sourceBlock=sourceInner?'<details class="dp-sec"><summary class="dp-sec-t">資料來源</summary>'+sourceInner+'</details>':'';
 
   // ── Build full body ──
   document.getElementById('dpBdy').innerHTML=
