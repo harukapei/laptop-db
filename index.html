@@ -78,6 +78,8 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:0
 .sbox{width:100%;padding:8px 10px 8px 30px;border:1px solid var(--border);border-radius:var(--r);font-size:12px;background:var(--surface2);color:var(--text);font-family:var(--fn);outline:none;transition:all var(--tr)}
 .sbox:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-light);background:#fff}
 .sbox::placeholder{color:var(--text3)}
+/* text-filter variant — no search icon, smaller padding */
+.sbox.text-filter{padding:7px 10px;font-size:11.5px}
 .search-hint{font-size:10px;color:var(--text3);margin-top:5px;line-height:1.5}
 .range-input{flex:1;min-width:0;padding:7px 9px;border:1px solid var(--border);border-radius:var(--r);font-size:12px;background:var(--surface2);color:var(--text);font-family:var(--mono);outline:none;transition:border-color var(--tr);-moz-appearance:textfield}
 .range-input::-webkit-inner-spin-button,.range-input::-webkit-outer-spin-button{-webkit-appearance:none}
@@ -190,7 +192,7 @@ select.sf-sel:focus{border-color:var(--accent);background:#fff}
 
 /* TABLE */
 .tw{background:var(--surface);border-radius:8px;border:1px solid var(--border);overflow-x:auto;overflow-y:hidden}
-table{width:100%;border-collapse:collapse;min-width:780px}
+table{width:100%;border-collapse:collapse;min-width:920px}
 thead{background:var(--surface2);position:sticky;top:0;z-index:2}
 th{padding:10px 12px;text-align:left;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.7px;color:var(--text3);white-space:nowrap;border-bottom:1px solid var(--border)}
 th.chk{width:36px;padding:10px 8px}
@@ -201,7 +203,15 @@ tr.dr.sel td{background:#dbeafe}
 td.chk{padding:9px 8px;text-align:center}
 /* visual hierarchy: model column emphasized, numeric columns mono */
 table tbody td:nth-child(4){font-weight:600;color:var(--text);font-size:12.5px}
-table tbody td:nth-child(n+5){font-family:var(--mono);font-size:11.5px;color:var(--text2)}
+table tbody td:nth-child(5),
+table tbody td:nth-child(6),
+table tbody td:nth-child(7),
+table tbody td:nth-child(8),
+table tbody td:nth-child(9){font-family:var(--mono);font-size:11.5px;color:var(--text2)}
+/* Color column: limit width, soft color */
+table tbody td.td-color{max-width:120px;color:var(--text2);font-size:11px}
+/* Material column: badge only; full text in cell's title for hover tooltip */
+table tbody td.td-mat{max-width:90px}
 input[type=checkbox]{cursor:pointer;width:14px;height:14px;accent-color:var(--accent)}
 
 /* TAGS */
@@ -519,6 +529,10 @@ details.dp-sec[open] > summary.dp-sec-t::after{content:'▴ 點擊收合'}
           <div class="pills" id="fpP"></div>
         </div>
         <div class="sf">
+          <span class="sf-t">獨立數字鍵區</span>
+          <div class="pills" id="numP"></div>
+        </div>
+        <div class="sf">
           <span class="sf-t">對標系列</span>
           <div class="pills" id="benchP"></div>
         </div>
@@ -544,6 +558,27 @@ details.dp-sec[open] > summary.dp-sec-t::after{content:'▴ 點擊收合'}
         <div class="sf">
           <span class="sf-t">市場</span>
           <div class="pills" id="regionP"></div>
+        </div>
+
+        <div class="sf">
+          <span class="sf-t">目標客群（關鍵字）</span>
+          <input class="sbox text-filter" id="taFilter" placeholder="例：創作者、商務、學生" oninput="apply()">
+        </div>
+        <div class="sf">
+          <span class="sf-t">使用情境（關鍵字）</span>
+          <input class="sbox text-filter" id="ucFilter" placeholder="例：剪輯、出差、遊戲" oninput="apply()">
+        </div>
+        <div class="sf">
+          <span class="sf-t">核心賣點（關鍵字）</span>
+          <input class="sbox text-filter" id="spFilter" placeholder="例：OLED、輕薄、Thunderbolt" oninput="apply()">
+        </div>
+        <div class="sf">
+          <span class="sf-t">散熱功能（關鍵字）</span>
+          <input class="sbox text-filter" id="thFilter" placeholder="例：Vapor Chamber、雙風扇、Aerogel" oninput="apply()">
+        </div>
+        <div class="sf">
+          <span class="sf-t">觸控板規格（關鍵字）</span>
+          <input class="sbox text-filter" id="tpFilter" placeholder="例：Haptic、玻璃、Precision" oninput="apply()">
         </div>
       </div>
     </details>
@@ -656,7 +691,7 @@ details.dp-sec[open] > summary.dp-sec-t::after{content:'▴ 點擊收合'}
 <script>
 
 let ALL=[],FD=[],selIdx=null,view='table',cardMode='spec',sortC='brand',sortD=1,cmpSet=new Set(),activePreset=null;
-const F={q:'',brand:[],screen:[],cpu:[],gpu:[],status:[],region:[],segment:[],form:[],series:'',material:[],fp:[],bench:[]};
+const F={q:'',brand:[],screen:[],cpu:[],gpu:[],status:[],region:[],segment:[],form:[],series:'',material:[],fp:[],numpad:[],bench:[]};
 
 const PRESETS=[
   {id:'p1', icon:'⚡', label:'輕薄 <1.5kg',  fn:d=>pW(d)<1500},
@@ -773,6 +808,16 @@ function initUI(){
     return '<div class="pill" onclick="togFp(this,\''+it.val+'\')">'+esc(it.label)+'</div>';
   }).join('');
 
+  // Numpad: 3 buckets
+  var numItems=[
+    {label:'• 有',    val:'yes'},
+    {label:'○ 無',    val:'no'},
+    {label:'⌖ 依尺寸', val:'mixed'},
+  ];
+  document.getElementById('numP').innerHTML=numItems.map(function(it){
+    return '<div class="pill" onclick="togNum(this,\''+it.val+'\')">'+esc(it.label)+'</div>';
+  }).join('');
+
   // Benchmark series: dynamic from data
   var benches=[...new Set(ALL.map(function(d){return d.benchmark_series;}).filter(Boolean))]
     .sort(function(a,b){
@@ -822,6 +867,11 @@ function togFp(el,val){
   if(i===-1){F.fp.push(val);el.classList.add('on');}else{F.fp.splice(i,1);el.classList.remove('on');}
   apply();
 }
+function togNum(el,val){
+  var i=F.numpad.indexOf(val);
+  if(i===-1){F.numpad.push(val);el.classList.add('on');}else{F.numpad.splice(i,1);el.classList.remove('on');}
+  apply();
+}
 function togBench(el,val){
   var i=F.bench.indexOf(val);
   if(i===-1){F.bench.push(val);el.classList.add('on');}else{F.bench.splice(i,1);el.classList.remove('on');}
@@ -834,6 +884,20 @@ function fpBucket(t){
   if(/電源鍵/.test(t))return 'power';
   if(t.startsWith('Yes')||t.startsWith('Optional'))return 'standalone';
   return 'none';
+}
+// Classify numpad text into 3 buckets (yes/no/mixed)
+function numpadBucket(t){
+  t=String(t||'').trim();
+  if(!t||t==='—')return null;
+  if(t==='無'||t==='No')return 'no';
+  if(t==='有'||t==='Yes')return 'yes';
+  // Complex/mixed entries: "14\"=無 / 16\"=有", "可選", "Optional", etc.
+  var hasYes=/有|Yes/.test(t), hasNo=/無|No/.test(t);
+  if(hasYes&&hasNo)return 'mixed';
+  if(/可選|Optional|選配|推測/.test(t))return 'mixed';
+  if(hasYes)return 'yes';
+  if(hasNo)return 'no';
+  return null;
 }
 function togPreset(id){
   if(activePreset===id){activePreset=null;document.getElementById(id).classList.remove('on');}
@@ -856,7 +920,7 @@ function updateSeriesDropdown(){
 function resetAll(){
   Object.keys(F).forEach(function(k){if(Array.isArray(F[k]))F[k]=[];else F[k]='';});
   ['sbox','sbox-m'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
-  ['wMinG','wMaxG','wMinKg','wMaxKg','xMin','xMax','yMin','yMax','zMin','zMax','pMin','pMax'].forEach(function(id){document.getElementById(id).value='';});
+  ['wMinG','wMaxG','wMinKg','wMaxKg','xMin','xMax','yMin','yMax','zMin','zMax','pMin','pMax','taFilter','ucFilter','spFilter','thFilter','tpFilter'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
   document.getElementById('seriesSel').value='';
   document.querySelectorAll('.pill.on').forEach(function(p){p.classList.remove('on');});
   if(activePreset){var el=document.getElementById(activePreset);if(el)el.classList.remove('on');activePreset=null;}
@@ -911,6 +975,11 @@ function apply(){
   var pMin=parseInt(document.getElementById('pMin').value)||0;
   var pMax=parseInt(document.getElementById('pMax').value)||0;
 
+  // Text-input filters from 進階篩選
+  function tfVal(id){var el=document.getElementById(id);return el?el.value.trim().toLowerCase():'';}
+  var taF=tfVal('taFilter'), ucF=tfVal('ucFilter'), spF=tfVal('spFilter'),
+      thF=tfVal('thFilter'), tpF=tfVal('tpFilter');
+
   FD=ALL.filter(function(d){
     if(!F.status.length&&d.status==='停售/改名')return false;
     if(F.brand.length&&!F.brand.includes(d.brand))return false;
@@ -928,7 +997,14 @@ function apply(){
       if(!F.material.some(function(m){return mats.indexOf(m)>=0;}))return false;
     }
     if(F.fp.length&&!F.fp.includes(fpBucket(d.fingerprint)))return false;
+    if(F.numpad.length){var nb=numpadBucket(d.numpad);if(!F.numpad.includes(nb))return false;}
     if(F.bench.length&&!F.bench.includes(d.benchmark_series))return false;
+    // Free-text filters from 進階篩選
+    if(taF&&!(d.target_audience||'').toLowerCase().includes(taF))return false;
+    if(ucF&&!(d.use_cases     ||'').toLowerCase().includes(ucF))return false;
+    if(spF&&!(d.selling_points||'').toLowerCase().includes(spF))return false;
+    if(thF&&!(d.thermal       ||'').toLowerCase().includes(thF))return false;
+    if(tpF&&!(d.touchpad      ||'').toLowerCase().includes(tpF))return false;
     if(wLo>0&&pW(d)<wLo)return false;
     if(wHi>0&&pW(d)>wHi)return false;
     if(xMin>0&&pX(d)<xMin)return false;
@@ -1123,7 +1199,7 @@ function designRow(icon,label,val){
 
 function renderTbl(){
   if(!FD.length){renderEmpty();return;}
-  var hdr='<tr><th class="chk"><input type="checkbox" onclick="togAllCmp(this)"></th><th>品牌</th><th>系列 / 型號</th><th>產品名稱</th><th>螢幕</th><th>重量 (g)</th><th title="寬度 mm">X · 寬</th><th title="深度 mm">Y · 長</th><th title="厚度 mm">Z · 厚</th></tr>';
+  var hdr='<tr><th class="chk"><input type="checkbox" onclick="togAllCmp(this)"></th><th>品牌</th><th>系列 / 型號</th><th>產品名稱</th><th>螢幕</th><th>重量 (g)</th><th title="寬度 mm">X · 寬</th><th title="深度 mm">Y · 長</th><th title="厚度 mm">Z · 厚</th><th>顏色</th><th>材質</th></tr>';
   var rows=FD.map(function(d,i){
     return '<tr class="dr'+(i===selIdx?' sel':'')+'" onclick="selItem('+i+')">'
       +'<td class="chk"><input type="checkbox" '+(cmpSet.has(i)?'checked':'')+' onclick="event.stopPropagation();togCmp('+i+')"></td>'
@@ -1135,6 +1211,8 @@ function renderTbl(){
       +'<td title="寬度 (mm)">'+esc(d.width_mm||'—')+'</td>'
       +'<td title="深度 (mm)">'+esc(d.depth_mm||'—')+'</td>'
       +'<td title="厚度 (mm)">'+esc(d.thickness_mm||'—')+'</td>'
+      +'<td class="td-color" title="'+esc(d.colors||'')+'">'+esc(d.colors||'—')+'</td>'
+      +'<td class="td-mat" title="'+esc(d.materials||'')+'">'+(d.materials?matBadge(d.materials):'—')+'</td>'
       +'</tr>';
   }).join('');
   document.getElementById('mc').innerHTML='<div class="tw"><table><thead>'+hdr+'</thead><tbody>'+rows+'</tbody></table></div>';
