@@ -454,6 +454,14 @@ details.dp-sec[open] > summary.dp-sec-t::after{content:'▴ 點擊收合'}
           <span class="sf-t">顯示晶片</span>
           <div class="pills" id="gpuP"></div>
         </div>
+        <div class="sf">
+          <span class="sf-t">螢幕種類</span>
+          <div class="pills" id="screenTypeP"></div>
+        </div>
+        <div class="sf">
+          <span class="sf-t">上市年份</span>
+          <div class="pills" id="yearP"></div>
+        </div>
       </div>
     </details>
 
@@ -691,7 +699,7 @@ details.dp-sec[open] > summary.dp-sec-t::after{content:'▴ 點擊收合'}
 <script>
 
 let ALL=[],FD=[],selIdx=null,view='table',cardMode='spec',sortC='brand',sortD=1,cmpSet=new Set(),activePreset=null;
-const F={q:'',brand:[],screen:[],cpu:[],gpu:[],status:[],region:[],segment:[],form:[],series:'',material:[],fp:[],numpad:[],bench:[]};
+const F={q:'',brand:[],screen:[],screenType:[],cpu:[],gpu:[],status:[],region:[],segment:[],form:[],series:'',material:[],fp:[],numpad:[],bench:[],year:[]};
 
 const PRESETS=[
   {id:'p1', icon:'⚡', label:'輕薄 <1.5kg',  fn:d=>pW(d)<1500},
@@ -778,6 +786,23 @@ function initUI(){
   document.getElementById('gpuP').innerHTML=gpuItems.map(function(item){
     return '<div class="pill" data-val="'+item.val+'" onclick="togGpu(this,\''+item.val+'\')">'+item.label+'</div>';
   }).join('');
+  // Screen type
+  var stItems=[
+    {label:'✨ OLED',       val:'oled'},
+    {label:'💎 Tandem OLED', val:'tandem'},
+    {label:'🔹 IPS',         val:'ips'},
+    {label:'⬜ LCD',         val:'lcd'},
+    {label:'🌟 Mini LED',    val:'miniled'},
+  ];
+  document.getElementById('screenTypeP').innerHTML=stItems.map(function(it){
+    return '<div class="pill" onclick="togScreenType(this,\''+it.val+'\')">'+esc(it.label)+'</div>';
+  }).join('');
+  // Year: dynamic from data, descending (newest first)
+  var years=[...new Set(ALL.map(function(d){return String(d.year||'').trim();}).filter(Boolean))]
+    .sort(function(a,b){return parseInt(b)-parseInt(a);});
+  document.getElementById('yearP').innerHTML=years.map(function(v){
+    return '<div class="pill" onclick="togYear(this,\''+v+'\')">'+esc(v)+'</div>';
+  }).join('');
   mkPills('cpuP','cpu',['Intel','AMD','Qualcomm'],null);
   mkPills('statusP','status',['在售','即將推出'],null);
   mkPills('regionP','region',['TW','TW/US','US'],null);
@@ -856,6 +881,29 @@ function togGpu(el,val){
   var i=F.gpu.indexOf(val);
   if(i===-1){F.gpu.push(val);el.classList.add('on');}else{F.gpu.splice(i,1);el.classList.remove('on');}
   apply();
+}
+function togScreenType(el,val){
+  var i=F.screenType.indexOf(val);
+  if(i===-1){F.screenType.push(val);el.classList.add('on');}else{F.screenType.splice(i,1);el.classList.remove('on');}
+  apply();
+}
+function togYear(el,val){
+  var i=F.year.indexOf(val);
+  if(i===-1){F.year.push(val);el.classList.add('on');}else{F.year.splice(i,1);el.classList.remove('on');}
+  apply();
+}
+// Check if a record's display_type matches a given screen-type category
+function screenTypeMatch(d, val){
+  var s=String(d.display_type||'').toLowerCase();
+  if(!s)return false;
+  switch(val){
+    case 'tandem':  return s.indexOf('tandem')>=0;
+    case 'oled':    return s.indexOf('oled')>=0;  // includes Tandem OLED
+    case 'miniled': return s.indexOf('mini led')>=0||s.indexOf('mini-led')>=0;
+    case 'ips':     return s.indexOf('ips')>=0||s.indexOf('uwva')>=0||s.indexOf('wva')>=0;
+    case 'lcd':     return s.indexOf('lcd')>=0;
+  }
+  return false;
 }
 function togMat(el,val){
   var i=F.material.indexOf(val);
@@ -987,6 +1035,8 @@ function apply(){
     if(F.screen.length&&!F.screen.some(function(s){return Math.floor(parseFloat(d.screen_size||0))===s;}))return false;
     if(F.cpu.length&&!F.cpu.some(function(c){return d.cpu_platform&&d.cpu_platform.includes(c);}))return false;
     if(F.gpu.length&&!F.gpu.includes(d.gpu_type))return false;
+    if(F.screenType.length&&!F.screenType.some(function(v){return screenTypeMatch(d,v);}))return false;
+    if(F.year.length&&!F.year.includes(String(d.year||'').trim()))return false;
     if(F.status.length&&!F.status.includes(d.status))return false;
     if(F.region.length&&!F.region.includes(d.region))return false;
     if(F.segment.length&&!F.segment.includes(d.segment))return false;
@@ -1199,14 +1249,14 @@ function designRow(icon,label,val){
 
 function renderTbl(){
   if(!FD.length){renderEmpty();return;}
-  var hdr='<tr><th class="chk"><input type="checkbox" onclick="togAllCmp(this)"></th><th>品牌</th><th>系列 / 型號</th><th>產品名稱</th><th>螢幕</th><th>重量 (g)</th><th title="寬度 mm">X · 寬</th><th title="深度 mm">Y · 長</th><th title="厚度 mm">Z · 厚</th><th>顏色</th><th>材質</th></tr>';
+  var hdr='<tr><th class="chk"><input type="checkbox" onclick="togAllCmp(this)"></th><th>品牌</th><th>系列</th><th>型號</th><th>尺吋</th><th>重量 (g)</th><th title="寬度 mm">X · 寬</th><th title="深度 mm">Y · 長</th><th title="厚度 mm">Z · 厚</th><th>顏色</th><th>材質</th></tr>';
   var rows=FD.map(function(d,i){
     return '<tr class="dr'+(i===selIdx?' sel':'')+'" onclick="selItem('+i+')">'
       +'<td class="chk"><input type="checkbox" '+(cmpSet.has(i)?'checked':'')+' onclick="event.stopPropagation();togCmp('+i+')"></td>'
       +'<td>'+bTag(d.brand)+'</td>'
       +'<td title="'+esc(d.series)+'">'+esc(d.series)+'</td>'
       +'<td title="'+esc(d.model)+'">'+esc(d.model)+' '+stsTag(d.status)+'</td>'
-      +'<td>'+esc(d.screen_size)+' <span style="color:var(--text3);font-size:10px">'+esc(d.display_type||'')+'</span></td>'
+      +'<td title="'+esc(d.display_type||'')+'">'+esc(d.screen_size)+'"</td>'
       +'<td>'+esc(d.weight_g||'—')+'</td>'
       +'<td title="寬度 (mm)">'+esc(d.width_mm||'—')+'</td>'
       +'<td title="深度 (mm)">'+esc(d.depth_mm||'—')+'</td>'
