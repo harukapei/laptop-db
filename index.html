@@ -124,6 +124,7 @@ select.sf-sel:focus{border-color:var(--accent);background:#fff}
 .stat-block:hover{border-color:var(--border);background:#fff}
 .stat-icon{font-size:13px;margin-bottom:3px;opacity:.75;line-height:1}
 .stat-num{font-size:18px;font-weight:700;font-family:var(--mono);line-height:1.1;color:var(--text)}
+.sort-intent-tag{display:inline-block;font-size:10px;font-weight:600;font-family:var(--fn);background:var(--accent-light);color:var(--accent);padding:2px 7px;border-radius:10px;margin-left:6px;vertical-align:middle;letter-spacing:.3px;cursor:help}
 .stat-lbl{font-size:10px;color:var(--text3);margin-top:3px;letter-spacing:.4px}
 .stat-sub{font-size:10px;color:var(--text2);font-family:var(--mono);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
@@ -730,11 +731,14 @@ const PRESETS=[
 
 // ── Helpers ──
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
-function pW(d){const m=String(d.weight_g||'').match(/\d+(?:\.\d+)?/g);const n=(m||[]).map(Number).filter(x=>x>100);return n.length?Math.min(...n):9999;}
-function pB(d){const m=String(d.battery_wh||'').match(/\d+(?:\.\d+)?/g);return m?Math.max(...m.map(Number)):0;}
-function pT(d){const m=String(d.thickness_mm||'').match(/\d+(?:\.\d+)?/g);return m?Math.min(...m.map(Number)):999;}
-function pX(d){const m=String(d.width_mm||'').match(/\d+(?:\.\d+)?/g);return m?Math.min(...m.map(Number)):999;}
-function pY(d){const m=String(d.depth_mm||'').match(/\d+(?:\.\d+)?/g);return m?Math.min(...m.map(Number)):999;}
+function pW(d){var m=String(d.weight_g||'').match(/\d+(?:\.\d+)?/g);var n=(m||[]).map(Number).filter(function(x){return x>100;});return n.length?Math.min.apply(null,n):Infinity;}
+function pB(d){var m=String(d.battery_wh||'').match(/\d+(?:\.\d+)?/g);if(!m)return -Infinity;var v=m.map(Number).filter(function(x){return x>=20&&x<=200;});return v.length?Math.max.apply(null,v):-Infinity;}
+// Parse dimensional fields. Filter out implausible numbers from free text
+// (e.g. "2026" year leaking). Returns Infinity for missing data so it always
+// sorts to the END regardless of direction (ascending or descending).
+function pT(d){var m=String(d.thickness_mm||'').match(/\d+(?:\.\d+)?/g);if(!m)return Infinity;var v=m.map(Number).filter(function(n){return n>=4&&n<=80;});return v.length?Math.min.apply(null,v):Infinity;}
+function pX(d){var m=String(d.width_mm||'').match(/\d+(?:\.\d+)?/g);if(!m)return Infinity;var v=m.map(Number).filter(function(n){return n>=150&&n<=600;});return v.length?Math.min.apply(null,v):Infinity;}
+function pY(d){var m=String(d.depth_mm||'').match(/\d+(?:\.\d+)?/g);if(!m)return Infinity;var v=m.map(Number).filter(function(n){return n>=100&&n<=500;});return v.length?Math.min.apply(null,v):Infinity;}
 
 // ── Tags ──
 function bTag(b){const c={Dell:'bt-dell',HP:'bt-hp',Lenovo:'bt-lenovo'}[b]||'';return'<span class="bt '+c+'">'+esc(b)+'</span>';}
@@ -742,6 +746,81 @@ function segTag(s){const c={Consumer:'sc',Gaming:'sg',Commercial:'sb','Mobile WS
 function stsTag(s){const c=s==='在售'?'s-on':(s==='即將上市'||s==='即將推出')?'s-soon':'s-off';return'<span class="sts '+c+'">'+esc(s)+'</span>';}
 
 // ── Smart search parser ──
+// Detect natural-language sort+limit intent like "寬最小的 14 吋" or "最輕的".
+// Returns null if no sort intent found, otherwise {column, direction, limit, cleanedQuery}.
+// The cleaned query string has the sort phrase stripped, so remaining parsing
+// (吋、kg以下、OLED…) keeps working.
+function parseSortIntent(raw){
+  var q=String(raw);
+  // Field synonyms — designer vocabulary
+  var FIELD={
+    'x':'width_mm','寬':'width_mm','寬度':'width_mm','width':'width_mm',
+    'y':'depth_mm','長':'depth_mm','深':'depth_mm','長度':'depth_mm','深度':'depth_mm','depth':'depth_mm',
+    'z':'thickness_mm','厚':'thickness_mm','厚度':'thickness_mm','薄':'thickness_mm','thickness':'thickness_mm',
+    '重':'weight_g','重量':'weight_g','輕':'weight_g','weight':'weight_g',
+    '電池':'battery_wh','電量':'battery_wh','battery':'battery_wh',
+    '螢幕':'screen_size','尺吋':'screen_size','尺寸':'screen_size',
+  };
+  // Adjective → direction. Some words imply direction directly:
+  //   "最薄"/"最輕" → ascending (smallest);
+  //   "最厚"/"最重" → descending (largest);
+  //   "最大" → desc; "最小" → asc
+  var DIR_ADJ={
+    '薄':1,'輕':1,'小':1,'窄':1,'淺':1,'短':1,'低':1,
+    '厚':-1,'重':-1,'大':-1,'寬':-1,'深':-1,'長':-1,'高':-1,
+  };
+  // Try several patterns, in order of specificity.
+  // Pattern A: "X 最小的 ..." / "寬最大" / "重量最輕"
+  //            field comes BEFORE 最+adj
+  var m=q.match(/([xyz寬長厚重輕薄電池螢幕尺][度量])?最([大小薄厚輕重寬窄深淺長短高低])(的)?/);
+  if(!m){
+    // Pattern B: "最 X 的 ..." e.g. "最薄的", "最輕的鋁合金"
+    m=q.match(/最([大小薄厚輕重寬窄深淺長短高低])(的)?/);
+  }
+  if(!m)return null;
+  // Extract field & direction
+  var adj=m[m.length-2]||m[1];  // the adjective char
+  var dir=DIR_ADJ[adj];
+  if(!dir)return null;
+  // Try to find field token. Look in the match and the surrounding chars.
+  var col=null;
+  var fullMatch=m[0];
+  // Search for an explicit field keyword in the original query (case-insens)
+  var lo=q.toLowerCase();
+  // Prefer field that appears BEFORE "最" (e.g. "寬最小")
+  var beforeMost=lo.split(/最/)[0];
+  Object.keys(FIELD).forEach(function(k){
+    if(!col && beforeMost.indexOf(k)>=0) col=FIELD[k];
+  });
+  // Else look anywhere in query
+  if(!col){
+    Object.keys(FIELD).forEach(function(k){
+      if(!col && lo.indexOf(k)>=0) col=FIELD[k];
+    });
+  }
+  // Else infer field from the adjective alone
+  // 薄/厚 → thickness; 輕/重 → weight; 寬/窄 → width; 長/深/淺 → depth
+  if(!col){
+    if(adj==='薄'||adj==='厚')col='thickness_mm';
+    else if(adj==='輕'||adj==='重')col='weight_g';
+    else if(adj==='寬'||adj==='窄')col='width_mm';
+    else if(adj==='長'||adj==='深'||adj==='淺'||adj==='短')col='depth_mm';
+    else return null;  // 最大/最小 without field is ambiguous
+  }
+  // Strip the matched sort phrase + any preceding field keyword from query
+  var cleaned=q;
+  // Remove matched "最X的"
+  cleaned=cleaned.replace(/(最[大小薄厚輕重寬窄深淺長短高低]的?)/g,' ');
+  // Remove field keywords (only those that are sort indicators, not "OLED" etc.)
+  Object.keys(FIELD).forEach(function(k){
+    if(FIELD[k]===col){
+      cleaned=cleaned.replace(new RegExp(k,'gi'),' ');
+    }
+  });
+  cleaned=cleaned.replace(/\s+/g,' ').trim();
+  return{column:col,direction:dir,limit:10,cleanedQuery:cleaned};
+}
+
 function parseQuery(raw){
   let q=raw.toLowerCase();
   const rules=[];
@@ -1099,6 +1178,20 @@ function syncSearch(src){
   if(other&&other!==document.activeElement)other.value=src.value;
 }
 
+// When natural-language sort intent overrides the current sort, also update
+// the sort button UI so the user can see what column the results are sorted by.
+function syncSortButtons(col, dir){
+  SORT_BTNS.forEach(function(id, i){
+    var el=document.getElementById(id);
+    var on=SORT_KEYS[i]===col;
+    el.classList.toggle('on', on);
+    el.classList.toggle('asc', on && dir===1);
+    el.classList.toggle('desc', on && dir===-1);
+  });
+  // Cache so user's manual sort state is preserved separately
+  sortC=col; sortD=dir;
+}
+
 // ── Sort ──
 var SORT_BTNS=['sb0','sb1','sb2','sb3','sb4','sb5','sb6'];
 var SORT_KEYS=['brand','weight_g','width_mm','depth_mm','thickness_mm','screen_size','last_verified'];
@@ -1120,7 +1213,13 @@ function apply(){
   var rawQ=document.getElementById('sbox').value.trim();
   F.q=rawQ.toLowerCase();
   F.series=document.getElementById('seriesSel').value;
-  var parsed=parseQuery(rawQ);
+
+  // Detect natural-language sort intent (e.g. "寬最小的 14 吋"). If found,
+  // we strip the sort phrase before passing to parseQuery so the remaining
+  // filters keep working.
+  var sortIntent=parseSortIntent(rawQ);
+  var qForParse=sortIntent?sortIntent.cleanedQuery:rawQ;
+  var parsed=parseQuery(qForParse);
   var rules=parsed.rules, tokens=parsed.tokens;
   var activePresetObj=activePreset?PRESETS.find(function(p){return p.id===activePreset;}):null;
 
@@ -1202,30 +1301,61 @@ function apply(){
     return true;
   });
 
+  // If a sort intent was detected from the query, override sortC/sortD for
+  // this render. Also limit FD to top N so "最薄的筆電" doesn't show all 303.
+  var effectiveSortC = sortIntent ? sortIntent.column    : sortC;
+  var effectiveSortD = sortIntent ? sortIntent.direction : sortD;
+
+  // Comparator that always pushes missing (Infinity) values to the end,
+  // regardless of sort direction.
+  function cmpNum(a, b, dir){
+    var aInf=!isFinite(a), bInf=!isFinite(b);
+    if(aInf && bInf)return 0;
+    if(aInf)return 1;       // a missing → after b
+    if(bInf)return -1;      // b missing → after a
+    return (a-b)*dir;
+  }
+
   FD.sort(function(a,b){
-    if(sortC==='brand')return (a.brand+a.series).localeCompare(b.brand+b.series,'zh')*sortD;
-    if(sortC==='weight_g')return(pW(a)-pW(b))*sortD;
-    if(sortC==='width_mm')return(pX(a)-pX(b))*sortD;
-    if(sortC==='depth_mm')return(pY(a)-pY(b))*sortD;
-    if(sortC==='thickness_mm')return(pT(a)-pT(b))*sortD;
-    if(sortC==='screen_size')return(parseFloat(a.screen_size||0)-parseFloat(b.screen_size||0))*sortD;
-    return String(a[sortC]||'').localeCompare(String(b[sortC]||''),'zh')*sortD;
+    if(effectiveSortC==='brand')return (a.brand+a.series).localeCompare(b.brand+b.series,'zh')*effectiveSortD;
+    if(effectiveSortC==='weight_g')return cmpNum(pW(a), pW(b), effectiveSortD);
+    if(effectiveSortC==='width_mm')return cmpNum(pX(a), pX(b), effectiveSortD);
+    if(effectiveSortC==='depth_mm')return cmpNum(pY(a), pY(b), effectiveSortD);
+    if(effectiveSortC==='thickness_mm')return cmpNum(pT(a), pT(b), effectiveSortD);
+    if(effectiveSortC==='battery_wh')return cmpNum(pB(a), pB(b), effectiveSortD);
+    if(effectiveSortC==='screen_size')return(parseFloat(a.screen_size||0)-parseFloat(b.screen_size||0))*effectiveSortD;
+    return String(a[effectiveSortC]||'').localeCompare(String(b[effectiveSortC]||''),'zh')*effectiveSortD;
   });
 
-  updateStats(); render();
+  // Apply top-N limit if sort intent active
+  if(sortIntent && FD.length > sortIntent.limit){
+    FD = FD.slice(0, sortIntent.limit);
+  }
+
+  // Sync the sort-button UI to reflect the active sort
+  if(sortIntent){
+    syncSortButtons(effectiveSortC, effectiveSortD);
+  }
+
+  updateStats(sortIntent); render();
 }
 
-function updateStats(){
+function updateStats(sortIntent){
   var n=FD.length;
-  document.getElementById('sCnt').textContent=n;
+  var cntEl=document.getElementById('sCnt');
+  if(sortIntent){
+    cntEl.innerHTML=n+'<span class="sort-intent-tag" title="自然語言排序，僅顯示前 '+sortIntent.limit+' 名">📊 前 '+n+' 名</span>';
+  } else {
+    cntEl.textContent=n;
+  }
   if(!n){['sBrand','sLight','sBatt'].forEach(function(id){document.getElementById(id).textContent='—';});['sBrandSub','sLightSub','sBattSub'].forEach(function(id){document.getElementById(id).textContent='';});return;}
   var bc={};FD.forEach(function(d){bc[d.brand]=(bc[d.brand]||0)+1;});
   document.getElementById('sBrand').textContent=Object.keys(bc).length+'品牌';
   document.getElementById('sBrandSub').textContent=Object.entries(bc).map(function(e){return e[0]+' '+e[1];}).join(' · ');
-  var byW=FD.filter(function(d){return pW(d)<9999;}).sort(function(a,b){return pW(a)-pW(b);});
+  var byW=FD.filter(function(d){return isFinite(pW(d));}).sort(function(a,b){return pW(a)-pW(b);});
   if(byW.length){document.getElementById('sLight').textContent=pW(byW[0])+'g';document.getElementById('sLightSub').textContent=byW[0].model.substring(0,18);}
   else{document.getElementById('sLight').textContent='—';document.getElementById('sLightSub').textContent='';}
-  var byB=FD.filter(function(d){return pB(d)>0;}).sort(function(a,b){return pB(b)-pB(a);});
+  var byB=FD.filter(function(d){return isFinite(pB(d));}).sort(function(a,b){return pB(b)-pB(a);});
   if(byB.length){document.getElementById('sBatt').textContent=pB(byB[0])+'Wh';document.getElementById('sBattSub').textContent=byB[0].model.substring(0,18);}
   else{document.getElementById('sBatt').textContent='—';document.getElementById('sBattSub').textContent='';}
 }
