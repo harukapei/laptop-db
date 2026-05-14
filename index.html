@@ -1374,6 +1374,28 @@ function designRow(icon,label,val){
     +'</div>';
 }
 
+// Shorten verbose "待驗證" placeholders in X/Y/Z dimension fields for table
+// display. Original text remains in `title` (hover) and in detail panel.
+//
+// Three categories of pending data (semantically different):
+//   • "等 Dell.com 上架 + Spec Sheet ..." → not yet launched, no specs yet
+//   • "需查 Dell.com Owner's Manual ..."  → launched but spec needs lookup
+//   • "等 ... 正式上市 + Lenovo PSREF ..." → not yet launched (Lenovo)
+function shortDim(v){
+  if(!v)return '—';
+  var s=String(v);
+  if(/^待驗證，等\s*Dell\.com\s*上架\s*\+\s*Spec\s*Sheet/i.test(s)){
+    return '待驗證，等 Dell.com 上架公開';
+  }
+  if(/^待驗證，需查\s*Dell\.com\s*Owner['']?s?\s*Manual/i.test(s)){
+    return '待驗證，需查 Dell 使用手冊';
+  }
+  if(/^待驗證，等.*正式上市.*Lenovo\s*PSREF/i.test(s)){
+    return '待驗證，等正式上市';
+  }
+  return s;
+}
+
 function renderTbl(){
   if(!FD.length){renderEmpty();return;}
   var hdr='<tr><th class="chk"><input type="checkbox" onclick="togAllCmp(this)"></th><th>品牌</th><th>系列</th><th>型號</th><th>尺吋</th><th>重量 (g)</th><th title="寬度 mm">X · 寬</th><th title="深度 mm">Y · 長</th><th title="厚度 mm">Z · 厚</th><th>顏色</th><th>材質</th></tr>';
@@ -1385,9 +1407,9 @@ function renderTbl(){
       +'<td title="'+esc(d.model)+'">'+esc(d.model)+' '+stsTag(d.status)+'</td>'
       +'<td title="'+esc(d.display_type||'')+'">'+esc(d.screen_size)+'"</td>'
       +'<td>'+esc(d.weight_g||'—')+'</td>'
-      +'<td title="寬度 (mm)">'+esc(d.width_mm||'—')+'</td>'
-      +'<td title="深度 (mm)">'+esc(d.depth_mm||'—')+'</td>'
-      +'<td title="厚度 (mm)">'+esc(d.thickness_mm||'—')+'</td>'
+      +'<td title="'+esc(d.width_mm||'寬度 (mm)')+'">'+esc(shortDim(d.width_mm))+'</td>'
+      +'<td title="'+esc(d.depth_mm||'深度 (mm)')+'">'+esc(shortDim(d.depth_mm))+'</td>'
+      +'<td title="'+esc(d.thickness_mm||'厚度 (mm)')+'">'+esc(shortDim(d.thickness_mm))+'</td>'
       +'<td class="td-color" title="'+esc(d.colors||'')+'">'+esc(d.colors||'—')+'</td>'
       +'<td class="td-mat" title="'+esc(d.materials||'')+'">'+(d.materials?matBadge(d.materials):'—')+'</td>'
       +'</tr>';
