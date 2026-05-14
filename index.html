@@ -1374,27 +1374,37 @@ function designRow(icon,label,val){
     +'</div>';
 }
 
-// Shorten verbose "待驗證" placeholders in X/Y/Z dimension fields for table
-// display. Original text remains in `title` (hover) and in detail panel.
+// Shorten verbose "待驗證" placeholders in any table cell for display.
+// Original text remains in `title` (hover) and in detail panel.
 //
 // Three categories of pending data (semantically different):
-//   • "等 Dell.com 上架 + Spec Sheet ..." → not yet launched, no specs yet
-//   • "需查 Dell.com Owner's Manual ..."  → launched but spec needs lookup
-//   • "等 ... 正式上市 + Lenovo PSREF ..." → not yet launched (Lenovo)
-function shortDim(v){
+//   • "等 Dell.com ..." / Spec Sheet / 完整色彩選項 → not yet launched, no data
+//   • "需查 Dell.com Owner's Manual ..."           → launched but spec needs lookup
+//   • "需查 Dell.com Spec Sheet ..."               → launched but spec needs lookup
+//   • "等 ... 正式上市 + Lenovo PSREF ..."         → not yet launched (Lenovo)
+function shortPending(v){
   if(!v)return '—';
   var s=String(v);
-  if(/^待驗證，等\s*Dell\.com\s*上架\s*\+\s*Spec\s*Sheet/i.test(s)){
+  // Dell 上架 / Spec Sheet / 完整色彩選項 (all "等" variants)
+  if(/^待驗證，等\s*Dell\.com/i.test(s)){
     return '待驗證，等 Dell.com 上架公開';
   }
+  // Dell Owner's Manual lookup
   if(/^待驗證，需查\s*Dell\.com\s*Owner['']?s?\s*Manual/i.test(s)){
     return '待驗證，需查 Dell 使用手冊';
   }
+  // Dell Spec Sheet lookup (post-launch)
+  if(/^待驗證，需查\s*Dell\.com/i.test(s)){
+    return '待驗證，需查 Dell 規格表';
+  }
+  // Lenovo PSREF
   if(/^待驗證，等.*正式上市.*Lenovo\s*PSREF/i.test(s)){
     return '待驗證，等正式上市';
   }
   return s;
 }
+// Backward-compat alias (shortDim was the original name used in XYZ cells)
+var shortDim = shortPending;
 
 function renderTbl(){
   if(!FD.length){renderEmpty();return;}
@@ -1406,11 +1416,11 @@ function renderTbl(){
       +'<td title="'+esc(d.series)+'">'+esc(d.series)+'</td>'
       +'<td title="'+esc(d.model)+'">'+esc(d.model)+' '+stsTag(d.status)+'</td>'
       +'<td title="'+esc(d.display_type||'')+'">'+esc(d.screen_size)+'"</td>'
-      +'<td>'+esc(d.weight_g||'—')+'</td>'
-      +'<td title="'+esc(d.width_mm||'寬度 (mm)')+'">'+esc(shortDim(d.width_mm))+'</td>'
-      +'<td title="'+esc(d.depth_mm||'深度 (mm)')+'">'+esc(shortDim(d.depth_mm))+'</td>'
-      +'<td title="'+esc(d.thickness_mm||'厚度 (mm)')+'">'+esc(shortDim(d.thickness_mm))+'</td>'
-      +'<td class="td-color" title="'+esc(d.colors||'')+'">'+esc(d.colors||'—')+'</td>'
+      +'<td title="'+esc(d.weight_g||'')+'">'+esc(shortPending(d.weight_g))+'</td>'
+      +'<td title="'+esc(d.width_mm||'寬度 (mm)')+'">'+esc(shortPending(d.width_mm))+'</td>'
+      +'<td title="'+esc(d.depth_mm||'深度 (mm)')+'">'+esc(shortPending(d.depth_mm))+'</td>'
+      +'<td title="'+esc(d.thickness_mm||'厚度 (mm)')+'">'+esc(shortPending(d.thickness_mm))+'</td>'
+      +'<td class="td-color" title="'+esc(d.colors||'')+'">'+esc(shortPending(d.colors))+'</td>'
       +'<td class="td-mat" title="'+esc(d.materials||'')+'">'+(d.materials?matBadge(d.materials):'—')+'</td>'
       +'</tr>';
   }).join('');
