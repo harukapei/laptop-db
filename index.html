@@ -275,6 +275,9 @@ input[type=checkbox]{cursor:pointer;width:14px;height:14px;accent-color:var(--ac
 .dp-v{font-size:11px;font-weight:500;color:var(--text);text-align:right;line-height:1.4;word-break:break-all}
 .dp-v.gpu-badge{background:var(--gpu-bg);color:var(--gpu-color);padding:2px 8px;border-radius:4px;font-weight:600}
 .dp-v.no-gpu{background:#f4f4f5;color:var(--text3);padding:2px 8px;border-radius:4px}
+.dp-v.cp-yes{background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:4px;font-weight:600}
+.dp-v.cp-no{background:#fee2e2;color:#b91c1c;padding:2px 8px;border-radius:4px}
+.dp-v.cp-pending{background:#fef9c3;color:#854d0e;padding:2px 8px;border-radius:4px}
 .dp-v-long{font-weight:400;line-height:1.55}
 .dp-row-col{flex-direction:column;align-items:stretch;gap:4px}
 .dp-row-col .dp-k{font-weight:600}
@@ -1440,8 +1443,20 @@ function selItem(i){
     +longRow('散熱',d.thermal,60);
 
   // ── 3. 效能 ──
+  // Copilot+ badge: bucket text into yes/no/pending for color
+  var cpHtml='';
+  if(d.copilot_plus){
+    var bkt=copilotBucket(d.copilot_plus);
+    var cls=bkt==='yes'?'cp-yes':bkt==='no'?'cp-no':'cp-pending';
+    cpHtml='<div class="dp-row"><span class="dp-k">Copilot+ 認證</span><span class="dp-v '+cls+'">'+esc(d.copilot_plus)+'</span></div>';
+  }
   var perf=r('CPU 平台',d.cpu_platform)
-    +'<div class="dp-row"><span class="dp-k">顯示晶片</span>'+gpuHtml+'</div>';
+    +r('CPU 型號',d.cpu_model)
+    +'<div class="dp-row"><span class="dp-k">顯示晶片</span>'+gpuHtml+'</div>'
+    +r('NPU 平台',d.npu_platform)
+    +r('NPU TOPS',d.npu_tops)
+    +r('總 AI TOPS',d.total_ai_tops)
+    +cpHtml;
 
   // ── 4. 電力與 I/O ──
   // Battery: prefer rich battery_full text (with expand), else short battery_wh
