@@ -554,7 +554,29 @@ details.dp-sec[open] > summary.dp-sec-t::after{content:'▴ 點擊收合'}
           <span class="sf-t">對標系列</span>
           <div class="pills" id="benchP"></div>
         </div>
-        <div class="search-hint" style="padding:0 14px 6px">💡 顏色、散熱、觸控板等可在<b>快速搜尋</b>內直接用文字找<br>例：搜尋「銀」「Vapor」「Haptic」</div>
+        <div class="sf">
+          <span class="sf-t">掉下巴IO (RJ45下潛)</span>
+          <div class="pills">
+            <div class="pill" onclick="togPill(this,'djaw','有')">有(下潛式)</div>
+            <div class="pill" onclick="togPill(this,'djaw','無')">無/全尺寸</div>
+          </div>
+        </div>
+        <div class="sf">
+          <span class="sf-t">防潑水鍵盤</span>
+          <div class="pills"><div class="pill" onclick="togPill(this,'spill','有')">有防潑水</div></div>
+        </div>
+        <div class="sf">
+          <span class="sf-t">MIL-STD 軍規測試</span>
+          <div class="pills"><div class="pill" onclick="togPill(this,'milf','有')">通過軍規</div></div>
+        </div>
+        <div class="sf">
+          <span class="sf-t">GPU 解瓦 (TGP 額定)</span>
+          <div class="pills">
+            <div class="pill" onclick="togPill(this,'tgpf','≥100W')">≥100W</div>
+            <div class="pill" onclick="togPill(this,'tgpf','≥140W')">≥140W</div>
+          </div>
+        </div>
+        <div class="search-hint" style="padding:0 14px 6px">💡 顏色、散熱、觸控板等可在<b>快速搜尋</b>內直接用文字找<br>例：搜尋「銀」「Vapor」「Haptic」；條件式如「14吋 防潑水」「16吋 掉下巴」</div>
       </div>
     </details>
 
@@ -714,7 +736,7 @@ details.dp-sec[open] > summary.dp-sec-t::after{content:'▴ 點擊收合'}
 <script>
 
 let ALL=[],FD=[],selIdx=null,view='table',cardMode='spec',sortC='brand',sortD=1,cmpSet=new Set(),activePreset=null;
-const F={q:'',brand:[],screen:[],screenType:[],cpu:[],gpu:[],status:[],region:[],segment:[],form:[],series:'',material:[],fp:[],numpad:[],bench:[],year:[],copilot:[]};
+const F={q:'',brand:[],screen:[],screenType:[],cpu:[],gpu:[],status:[],region:[],segment:[],form:[],series:'',material:[],fp:[],numpad:[],bench:[],year:[],copilot:[],djaw:[],spill:[],milf:[],tgpf:[]};
 
 const PRESETS=[
   {id:'p1', icon:'⚡', label:'輕薄 <1.5kg',  fn:d=>pW(d)<1500},
@@ -841,7 +863,12 @@ function parseQuery(raw){
   if(/停售/.test(q)){rules.push({type:'status',val:'停售/改名'});q=q.replace(/停售/g,'');}
   ['dell','hp','lenovo'].forEach(function(b){if(q.includes(b)){rules.push({type:'brand',val:b});q=q.replace(new RegExp(b,'g'),'');}});
   if(/oled/.test(q)){rules.push({type:'oled'});q=q.replace(/oled/g,'');}
-  var STOP=['的','且','和','與','及','也','跟','或','以下','以上'];
+  if(/防潑水|防潑/.test(q)){rules.push({type:'spill'});q=q.replace(/防潑水|防潑/g,'');}
+  if(/掉下巴|下潛/.test(q)){rules.push({type:'dropjaw'});q=q.replace(/掉下巴|下潛/g,'');}
+  if(/mil-?std|軍規|810/i.test(q)){rules.push({type:'mil'});q=q.replace(/mil-?std|軍規|810[a-z]?/gi,'');}
+  q=q.replace(/([一二三四1234])\s*金/g,function(_,n){var mp={'一':1,'二':2,'三':3,'四':4};rules.push({type:'metal',val:mp[n]||parseInt(n)});return'';});
+  q=q.replace(/\b(1[1-8](?:\.\d)?)\b/g,function(_,n){rules.push({type:'inch',val:parseFloat(n)});return' ';});
+  var STOP=['的','且','和','與','及','也','跟','或','以下','以上','機種','機型','筆電'];
   var tokens=q.split(/[\s、，,。]+/).map(function(t){return t.trim();}).filter(function(t){return t.length>=1&&!/^\d+$/.test(t)&&!STOP.includes(t);});
   return{rules:rules,tokens:tokens};
 }
@@ -855,6 +882,10 @@ function applyRule(d,rule){
     case 'status': return d.status===rule.val;
     case 'brand': return d.brand.toLowerCase()===rule.val;
     case 'oled': return d.display_type&&d.display_type.toUpperCase().includes('OLED');
+    case 'spill': return d.spill_resist==='有';
+    case 'dropjaw': return d.drop_jaw==='有';
+    case 'mil': return !!(d.mil_std&&d.mil_std.indexOf('MIL-STD')>=0);
+    case 'metal': return parseInt(d.metal_count)===rule.val;
   }
   return true;
 }
@@ -1279,6 +1310,10 @@ function apply(){
     if(F.numpad.length){var nbs=numpadBuckets(d.numpad);if(!F.numpad.some(function(v){return nbs.indexOf(v)>=0;}))return false;}
     if(F.bench.length&&!F.bench.includes(d.benchmark_series))return false;
     if(F.copilot.length&&!F.copilot.includes(copilotBucket(d.copilot_plus)))return false;
+    if(F.djaw.length&&!F.djaw.includes(d.drop_jaw))return false;
+    if(F.spill.length&&d.spill_resist!=='有')return false;
+    if(F.milf.length&&!(d.mil_std&&d.mil_std.indexOf('MIL-STD')>=0))return false;
+    if(F.tgpf.length){var mtg=String(d.gpu_tgp||'').match(/(\d+)\s*W/);var wtg=mtg?+mtg[1]:0;if(!F.tgpf.some(function(t){return t==='≥140W'?wtg>=140:wtg>=100;}))return false;}
     // Free-text filters from 進階篩選 — multi-keyword AND
     if(!matchTokens(taF,d.target_audience))return false;
     if(!matchTokens(ucF,d.use_cases))return false;
@@ -1547,7 +1582,7 @@ var shortDim = shortPending;
 
 function renderTbl(){
   if(!FD.length){renderEmpty();return;}
-  var hdr='<tr><th class="chk"><input type="checkbox" onclick="togAllCmp(this)"></th><th>品牌</th><th>系列</th><th>型號</th><th>尺吋</th><th>重量 (g)</th><th title="寬度 mm">X · 寬</th><th title="深度 mm">Y · 長</th><th title="厚度 mm">Z · 厚</th><th>顏色</th><th>材質</th></tr>';
+  var hdr='<tr><th class="chk"><input type="checkbox" onclick="togAllCmp(this)"></th><th>品牌</th><th>系列</th><th>型號</th><th>尺吋</th><th>重量 (g)</th><th title="寬度 mm">X · 寬</th><th title="深度 mm">Y · 長</th><th title="厚度 mm">Z · 厚</th><th>顏色</th><th>材質</th><th title="RJ45下潛式下巴">掉下巴</th><th title="軍規測試 MIL-STD">MIL</th><th title="變壓器瓦數">變壓器</th><th title="鍵盤鍵程">鍵程</th><th title="GPU TGP額定">TGP</th></tr>';
   var rows=FD.map(function(d,i){
     return '<tr class="dr'+(i===selIdx?' sel':'')+'" onclick="selItem('+i+')">'
       +'<td class="chk"><input type="checkbox" '+(cmpSet.has(i)?'checked':'')+' onclick="event.stopPropagation();togCmp('+i+')"></td>'
@@ -1561,6 +1596,11 @@ function renderTbl(){
       +'<td title="'+esc(d.thickness_mm||'厚度 (mm)')+'">'+esc(shortPending(d.thickness_mm))+'</td>'
       +'<td class="td-color" title="'+esc(d.colors||'')+'">'+esc(shortPending(d.colors))+'</td>'
       +'<td class="td-mat" title="'+esc(d.materials||'')+'">'+(d.materials?matBadge(d.materials):'—')+'</td>'
+      +'<td title="'+esc(d.drop_jaw||'')+'">'+(d.drop_jaw?esc(d.drop_jaw):'—')+'</td>'
+      +'<td title="'+esc(d.mil_std||'')+'">'+(d.mil_std?'<span style="color:#16a34a;font-weight:600">✓</span>':'—')+'</td>'
+      +'<td title="'+esc(d.adapter_w||'')+'">'+(d.adapter_w?esc(trunc(d.adapter_w,12)):'—')+'</td>'
+      +'<td title="'+esc(d.key_travel||'')+'">'+(d.key_travel?esc(d.key_travel):'—')+'</td>'
+      +'<td title="'+esc(d.gpu_tgp||'')+'">'+(d.gpu_tgp?esc(trunc(d.gpu_tgp,16)):'—')+'</td>'
       +'</tr>';
   }).join('');
   document.getElementById('mc').innerHTML='<div class="tw"><table><thead>'+hdr+'</thead><tbody>'+rows+'</tbody></table></div>';
