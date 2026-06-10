@@ -727,6 +727,10 @@ const PRESETS=[
   {id:'p8', icon:'✨', label:'OLED螢幕',      fn:d=>d.display_type&&d.display_type.toUpperCase().includes('OLED')},
   {id:'p9', icon:'🎮', label:'電競機種',       fn:d=>d.segment==='Gaming'},
   {id:'p10',icon:'🔄', label:'2-in-1',        fn:d=>d.form_factor==='2-in-1'},
+  {id:'p11',icon:'🔌', label:'掉下巴IO(RJ45下潛)', fn:d=>d.drop_jaw==='有'},
+  {id:'p12',icon:'💧', label:'防潑水鍵盤',     fn:d=>d.spill_resist==='有'},
+  {id:'p13',icon:'🛡', label:'MIL-STD軍規',    fn:d=>d.mil_std&&d.mil_std.indexOf('MIL-STD')>=0},
+  {id:'p14',icon:'⚡', label:'高解瓦 TGP≥140W', fn:d=>{var m=String(d.gpu_tgp||'').match(/(\d+)\s*W/);return !!(m&&+m[1]>=140);}},
 ];
 
 // ── Helpers ──
@@ -1476,6 +1480,11 @@ function renderCrd(){
       if(d.fingerprint)rows.push(designRow('🔘','指紋',trunc(d.fingerprint,40)));
       if(d.touchpad)   rows.push(designRow('🪟','觸控板',trunc(d.touchpad,45)));
       if(d.thermal)    rows.push(designRow('🌬','散熱',trunc(d.thermal,55)));
+      if(d.drop_jaw)   rows.push(designRow('🔌','下巴IO',trunc(d.drop_jaw,28)));
+      if(d.gpu_tgp)    rows.push(designRow('⚡','TGP',trunc(d.gpu_tgp,40)));
+      if(d.adapter_w)  rows.push(designRow('🔋','變壓器',trunc(d.adapter_w,30)));
+      if(d.key_travel) rows.push(designRow('⌨','鍵程',trunc(d.key_travel,20)));
+      if(d.mil_std)    rows.push(designRow('🛡','MIL',trunc(d.mil_std,28)));
       body=rows.length?rows.join(''):'<div style="color:var(--text3);font-size:11px;padding:8px 0">— 無設計細節資料 —</div>';
     } else {
       // Spec view: X/Y/Z, weight, battery, CPU/GPU
@@ -1604,6 +1613,26 @@ function selItem(i){
     +longRow('觸控板',d.touchpad,60)
     +longRow('散熱',d.thermal,60);
 
+  // ── ⭐ 物理設計細節 (工業設計新欄位 50-68) ──
+  var design=r('I/O 種類',d.io_type)
+    +r('掉下巴IO (RJ45下潛)',d.drop_jaw)
+    +r('屏占比',d.screen_body_ratio)
+    +r('IP 等級',d.ip_rating)
+    +longRow('MIL-STD 軍規',d.mil_std,50)
+    +r('MIL 測項數',d.mil_count)
+    +r('Hinge 壽命',d.hinge_life)
+    +longRow('GPU TGP (額定)',d.gpu_tgp,52)
+    +longRow('CPU TDP (額定)',d.cpu_tdp,52)
+    +longRow('解瓦實測 (NBC)',d.jiewa_measured,52)
+    +longRow('變壓器瓦數',d.adapter_w,40)
+    +r('變壓器尺寸',d.adapter_size)
+    +r('變壓器重量',d.adapter_weight)
+    +r('鍵程',d.key_travel)
+    +r('防潑水鍵盤',d.spill_resist)
+    +r('金屬件數(幾金)',d.metal_count)
+    +r('金屬位置(ABCD)',d.metal_pos)
+    +r('出風口配置',d.exhaust);
+
   // ── 3. 效能 ──
   // Copilot+ badge: bucket text into yes/no/pending for color
   var cpHtml='';
@@ -1652,6 +1681,7 @@ function selItem(i){
   // ── Build full body ──
   document.getElementById('dpBdy').innerHTML=
      sec('⭐ 物理規格',physical)
+    +sec('🎨 物理設計細節 (工業設計)',design)
     +sec('⭐ 外觀與工藝',craft)
     +sec('效能',perf)
     +sec('電力與 I/O',io)
@@ -1690,7 +1720,7 @@ function updCmpBar(){
 function openCmp(){
   var items=[...cmpSet].map(function(i){return FD[i];}).filter(Boolean);
   if(!items.length)return;
-  var FIELDS=[['型號','model'],['品牌','brand'],['系列','series'],['狀態','status'],['市場','region'],['客群','segment'],['重量 (g)','weight_g'],['X · 寬 (mm)','width_mm'],['Y · 長 (mm)','depth_mm'],['Z · 厚 (mm)','thickness_mm'],['螢幕尺寸','screen_size'],['螢幕種類','display_type'],['解析度','resolution'],['Form Factor','form_factor'],['CPU平台','cpu_platform'],['GPU類型','gpu_type'],['獨顯型號','dgpu_model'],['電池 (Wh)','battery_wh'],['前鏡頭','webcam'],['數字鍵區','numpad'],['左側I/O','io_left'],['右側I/O','io_right'],['NT$ MSRP','price_tw'],['US$ MSRP','price_us'],['上市年份','year'],['最後核實','last_verified']];
+  var FIELDS=[['型號','model'],['品牌','brand'],['系列','series'],['狀態','status'],['市場','region'],['客群','segment'],['重量 (g)','weight_g'],['X · 寬 (mm)','width_mm'],['Y · 長 (mm)','depth_mm'],['Z · 厚 (mm)','thickness_mm'],['螢幕尺寸','screen_size'],['螢幕種類','display_type'],['解析度','resolution'],['Form Factor','form_factor'],['CPU平台','cpu_platform'],['GPU類型','gpu_type'],['獨顯型號','dgpu_model'],['電池 (Wh)','battery_wh'],['前鏡頭','webcam'],['數字鍵區','numpad'],['左側I/O','io_left'],['右側I/O','io_right'],['NT$ MSRP','price_tw'],['US$ MSRP','price_us'],['上市年份','year'],['最後核實','last_verified'],['掉下巴IO','drop_jaw'],['GPU TGP(額定)','gpu_tgp'],['CPU TDP(額定)','cpu_tdp'],['解瓦實測(NBC)','jiewa_measured'],['變壓器瓦數','adapter_w'],['鍵程','key_travel'],['防潑水鍵盤','spill_resist'],['MIL-STD','mil_std'],['屏占比','screen_body_ratio'],['IP等級','ip_rating'],['金屬件數','metal_count']];
   var hdr='<tr><th>規格項目</th>'+items.map(function(d){return '<td>'+bTag(d.brand)+' '+esc(d.model)+'</td>';}).join('')+'</tr>';
   var rows=FIELDS.map(function(fl){
     var cells=items.map(function(d){var v=String(d[fl[1]]||'—');return v.includes('dGPU')?'<td class="hi">● '+esc(v)+'</td>':'<td>'+esc(v)+'</td>';}).join('');
