@@ -576,6 +576,13 @@ details.dp-sec[open] > summary.dp-sec-t::after{content:'▴ 點擊收合'}
             <div class="pill" onclick="togPill(this,'tgpf','≥140W')">≥140W</div>
           </div>
         </div>
+        <div class="sf">
+          <span class="sf-t">CPU 功耗 (TDP 額定)</span>
+          <div class="pills">
+            <div class="pill" onclick="togPill(this,'tdpf','≥45W')">≥45W</div>
+            <div class="pill" onclick="togPill(this,'tdpf','≥95W')">≥95W</div>
+          </div>
+        </div>
         <div class="search-hint" style="padding:0 14px 6px">💡 顏色、散熱、觸控板等可在<b>快速搜尋</b>內直接用文字找<br>例：搜尋「銀」「Vapor」「Haptic」；條件式如「14吋 防潑水」「16吋 掉下巴」</div>
       </div>
     </details>
@@ -736,7 +743,7 @@ details.dp-sec[open] > summary.dp-sec-t::after{content:'▴ 點擊收合'}
 <script>
 
 let ALL=[],FD=[],selIdx=null,view='table',cardMode='spec',sortC='brand',sortD=1,cmpSet=new Set(),activePreset=null;
-const F={q:'',brand:[],screen:[],screenType:[],cpu:[],gpu:[],status:[],region:[],segment:[],form:[],series:'',material:[],fp:[],numpad:[],bench:[],year:[],copilot:[],djaw:[],spill:[],milf:[],tgpf:[]};
+const F={q:'',brand:[],screen:[],screenType:[],cpu:[],gpu:[],status:[],region:[],segment:[],form:[],series:'',material:[],fp:[],numpad:[],bench:[],year:[],copilot:[],djaw:[],spill:[],milf:[],tgpf:[],tdpf:[]};
 
 const PRESETS=[
   {id:'p1', icon:'⚡', label:'輕薄 <1.5kg',  fn:d=>pW(d)<1500},
@@ -867,6 +874,14 @@ function parseQuery(raw){
   if(/掉下巴|下潛/.test(q)){rules.push({type:'dropjaw'});q=q.replace(/掉下巴|下潛/g,'');}
   if(/mil-?std|軍規|810/i.test(q)){rules.push({type:'mil'});q=q.replace(/mil-?std|軍規|810[a-z]?/gi,'');}
   q=q.replace(/([一二三四1234])\s*金/g,function(_,n){var mp={'一':1,'二':2,'三':3,'四':4};rules.push({type:'metal',val:mp[n]||parseInt(n)});return'';});
+  var mtgp=q.match(/(?:tgp|解瓦)\s*([≥>=]*)\s*(\d+)\s*(w|瓦)?/i);
+  if(mtgp&&(parseInt(mtgp[2])>=19||mtgp[1]||mtgp[3])){rules.push({type:'tgp',val:parseInt(mtgp[2])});q=q.replace(mtgp[0],' ');}
+  else if(/高解瓦|高\s*tgp/i.test(q)){rules.push({type:'tgp',val:140});q=q.replace(/高解瓦|高\s*tgp/gi,' ');}
+  else if(/解瓦|tgp/i.test(q)){rules.push({type:'tgp',val:1});q=q.replace(/解瓦|tgp/gi,' ');}
+  var mtdp=q.match(/(?:tdp|cpu\s*功耗)\s*([≥>=]*)\s*(\d+)\s*(w|瓦)?/i);
+  if(mtdp&&(parseInt(mtdp[2])>=19||mtdp[1]||mtdp[3])){rules.push({type:'tdp',val:parseInt(mtdp[2])});q=q.replace(mtdp[0],' ');}
+  else if(/高功耗|高\s*tdp/i.test(q)){rules.push({type:'tdp',val:95});q=q.replace(/高功耗|高\s*tdp/gi,' ');}
+  else if(/tdp/i.test(q)){rules.push({type:'tdp',val:1});q=q.replace(/tdp/gi,' ');}
   q=q.replace(/\b(1[1-8](?:\.\d)?)\b/g,function(_,n){rules.push({type:'inch',val:parseFloat(n)});return' ';});
   var STOP=['的','且','和','與','及','也','跟','或','以下','以上','機種','機型','筆電'];
   var tokens=q.split(/[\s、，,。]+/).map(function(t){return t.trim();}).filter(function(t){return t.length>=1&&!/^\d+$/.test(t)&&!STOP.includes(t);});
@@ -886,6 +901,8 @@ function applyRule(d,rule){
     case 'dropjaw': return d.drop_jaw==='有';
     case 'mil': return !!(d.mil_std&&d.mil_std.indexOf('MIL-STD')>=0);
     case 'metal': return parseInt(d.metal_count)===rule.val;
+    case 'tgp': {var a=(String(d.gpu_tgp||'').match(/(\d+)\s*W/g)||[]).map(function(x){return parseInt(x);});return (a.length?Math.max.apply(null,a):0)>=rule.val;}
+    case 'tdp': {var b=(String(d.cpu_tdp||'').match(/(\d+)\s*W/g)||[]).map(function(x){return parseInt(x);});return (b.length?Math.max.apply(null,b):0)>=rule.val;}
   }
   return true;
 }
@@ -1314,6 +1331,7 @@ function apply(){
     if(F.spill.length&&d.spill_resist!=='有')return false;
     if(F.milf.length&&!(d.mil_std&&d.mil_std.indexOf('MIL-STD')>=0))return false;
     if(F.tgpf.length){var mtg=String(d.gpu_tgp||'').match(/(\d+)\s*W/);var wtg=mtg?+mtg[1]:0;if(!F.tgpf.some(function(t){return t==='≥140W'?wtg>=140:wtg>=100;}))return false;}
+    if(F.tdpf.length){var atd=(String(d.cpu_tdp||'').match(/(\d+)\s*W/g)||[]).map(function(x){return parseInt(x);});var wtd=atd.length?Math.max.apply(null,atd):0;if(!F.tdpf.some(function(t){return t==='≥95W'?wtd>=95:wtd>=45;}))return false;}
     // Free-text filters from 進階篩選 — multi-keyword AND
     if(!matchTokens(taF,d.target_audience))return false;
     if(!matchTokens(ucF,d.use_cases))return false;
@@ -1558,31 +1576,25 @@ function designRow(icon,label,val){
 //   • "等 ... 正式上市 + Lenovo PSREF ..."         → not yet launched (Lenovo)
 function shortPending(v){
   if(!v)return '—';
-  var s=String(v);
-  // Dell 上架 / Spec Sheet / 完整色彩選項 (all "等" variants)
-  if(/^待驗證，等\s*Dell\.com/i.test(s)){
-    return '待驗證，等 Dell.com 上架公開';
-  }
-  // Dell Owner's Manual lookup
-  if(/^待驗證，需查\s*Dell\.com\s*Owner['']?s?\s*Manual/i.test(s)){
-    return '待驗證，需查 Dell 使用手冊';
-  }
-  // Dell Spec Sheet lookup (post-launch)
-  if(/^待驗證，需查\s*Dell\.com/i.test(s)){
-    return '待驗證，需查 Dell 規格表';
-  }
-  // Lenovo PSREF
-  if(/^待驗證，等.*正式上市.*Lenovo\s*PSREF/i.test(s)){
-    return '待驗證，等正式上市';
-  }
-  return s;
+  var s=String(v).trim();
+  if(s==='-'||s==='—')return '—';
+  // 一般有效值 → 原樣顯示
+  if(!/^待(驗證|補|估|確認)/.test(s)) return s;
+  // 待補/待驗證類 → 精簡標籤（完整原因仍保留在詳情面板）
+  if(/正式上市|psref/i.test(s)) return '等正式上市';
+  if(/上架/.test(s)) return '等官網上架';
+  if(/manual|手冊/i.test(s)) return '待查手冊';
+  if(/spec\s*sheet|規格表|quickspecs/i.test(s)) return '待查規格表';
+  if(/未列|未公[布佈]|未公告|未提供/.test(s)) return '待補';
+  var m=s.match(/^(待驗證|待補|待估|待確認)/);
+  return m?m[1]:s;
 }
 // Backward-compat alias (shortDim was the original name used in XYZ cells)
 var shortDim = shortPending;
 
 function renderTbl(){
   if(!FD.length){renderEmpty();return;}
-  var hdr='<tr><th class="chk"><input type="checkbox" onclick="togAllCmp(this)"></th><th>品牌</th><th>系列</th><th>型號</th><th>尺吋</th><th>重量 (g)</th><th title="寬度 mm">X · 寬</th><th title="深度 mm">Y · 長</th><th title="厚度 mm">Z · 厚</th><th>顏色</th><th>材質</th><th title="RJ45下潛式下巴">掉下巴</th><th title="軍規測試 MIL-STD">MIL</th><th title="變壓器瓦數">變壓器</th><th title="鍵盤鍵程">鍵程</th><th title="GPU TGP額定">TGP</th></tr>';
+  var hdr='<tr><th class="chk"><input type="checkbox" onclick="togAllCmp(this)"></th><th>品牌</th><th>系列</th><th>型號</th><th>尺吋</th><th>重量 (g)</th><th title="寬度 mm">X · 寬</th><th title="深度 mm">Y · 長</th><th title="厚度 mm">Z · 厚</th><th>顏色</th><th>材質</th></tr>';
   var rows=FD.map(function(d,i){
     return '<tr class="dr'+(i===selIdx?' sel':'')+'" onclick="selItem('+i+')">'
       +'<td class="chk"><input type="checkbox" '+(cmpSet.has(i)?'checked':'')+' onclick="event.stopPropagation();togCmp('+i+')"></td>'
@@ -1596,11 +1608,6 @@ function renderTbl(){
       +'<td title="'+esc(d.thickness_mm||'厚度 (mm)')+'">'+esc(shortPending(d.thickness_mm))+'</td>'
       +'<td class="td-color" title="'+esc(d.colors||'')+'">'+esc(shortPending(d.colors))+'</td>'
       +'<td class="td-mat" title="'+esc(d.materials||'')+'">'+(d.materials?matBadge(d.materials):'—')+'</td>'
-      +'<td title="'+esc(d.drop_jaw||'')+'">'+(d.drop_jaw?esc(d.drop_jaw):'—')+'</td>'
-      +'<td title="'+esc(d.mil_std||'')+'">'+(d.mil_std?'<span style="color:#16a34a;font-weight:600">✓</span>':'—')+'</td>'
-      +'<td title="'+esc(d.adapter_w||'')+'">'+(d.adapter_w?esc(trunc(d.adapter_w,12)):'—')+'</td>'
-      +'<td title="'+esc(d.key_travel||'')+'">'+(d.key_travel?esc(d.key_travel):'—')+'</td>'
-      +'<td title="'+esc(d.gpu_tgp||'')+'">'+(d.gpu_tgp?esc(trunc(d.gpu_tgp,16)):'—')+'</td>'
       +'</tr>';
   }).join('');
   document.getElementById('mc').innerHTML='<div class="tw"><table><thead>'+hdr+'</thead><tbody>'+rows+'</tbody></table></div>';
