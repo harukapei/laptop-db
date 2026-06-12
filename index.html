@@ -583,6 +583,13 @@ details.dp-sec[open] > summary.dp-sec-t::after{content:'▴ 點擊收合'}
             <div class="pill" onclick="togPill(this,'tdpf','≥95W')">≥95W</div>
           </div>
         </div>
+        <div class="sf">
+          <span class="sf-t">出風口配置 (排風方向)</span>
+          <div class="pills">
+            <div class="pill" onclick="togPill(this,'exhaust','後出風')">後出風</div>
+            <div class="pill" onclick="togPill(this,'exhaust','側出風')">側出風</div>
+          </div>
+        </div>
         <div class="search-hint" style="padding:0 14px 6px">💡 顏色、散熱、觸控板等可在<b>快速搜尋</b>內直接用文字找<br>例：搜尋「銀」「Vapor」「Haptic」；條件式如「14吋 防潑水」「16吋 掉下巴」</div>
       </div>
     </details>
@@ -743,7 +750,7 @@ details.dp-sec[open] > summary.dp-sec-t::after{content:'▴ 點擊收合'}
 <script>
 
 let ALL=[],FD=[],selIdx=null,view='table',cardMode='spec',sortC='brand',sortD=1,cmpSet=new Set(),activePreset=null;
-const F={q:'',brand:[],screen:[],screenType:[],cpu:[],gpu:[],status:[],region:[],segment:[],form:[],series:'',material:[],fp:[],numpad:[],bench:[],year:[],copilot:[],djaw:[],spill:[],milf:[],tgpf:[],tdpf:[]};
+const F={q:'',brand:[],screen:[],screenType:[],cpu:[],gpu:[],status:[],region:[],segment:[],form:[],series:'',material:[],fp:[],numpad:[],bench:[],year:[],copilot:[],djaw:[],spill:[],milf:[],tgpf:[],tdpf:[],exhaust:[]};
 
 const PRESETS=[
   {id:'p1', icon:'⚡', label:'輕薄 <1.5kg',  fn:d=>pW(d)<1500},
@@ -872,6 +879,8 @@ function parseQuery(raw){
   if(/oled/.test(q)){rules.push({type:'oled'});q=q.replace(/oled/g,'');}
   if(/防潑水|防潑/.test(q)){rules.push({type:'spill'});q=q.replace(/防潑水|防潑/g,'');}
   if(/掉下巴|下潛/.test(q)){rules.push({type:'dropjaw'});q=q.replace(/掉下巴|下潛/g,'');}
+  if(/後出風|後方排風|後排風/.test(q)){rules.push({type:'exhaust',val:'後'});q=q.replace(/後出風|後方排風|後排風/g,'');}
+  if(/側出風|側方排風|側排風/.test(q)){rules.push({type:'exhaust',val:'側'});q=q.replace(/側出風|側方排風|側排風/g,'');}
   if(/mil-?std|軍規|810/i.test(q)){rules.push({type:'mil'});q=q.replace(/mil-?std|軍規|810[a-z]?/gi,'');}
   if(/全塑膠|全塑/.test(q)){rules.push({type:'metal',val:0});q=q.replace(/全塑膠|全塑/g,'');}
   q=q.replace(/([零一二三四0-4])\s*金/g,function(_,n){var mp={'零':0,'一':1,'二':2,'三':3,'四':4};var v=(n in mp)?mp[n]:parseInt(n);rules.push({type:'metal',val:v});return'';});
@@ -901,6 +910,7 @@ function applyRule(d,rule){
     case 'spill': return d.spill_resist==='有';
     case 'dropjaw': return d.drop_jaw==='有';
     case 'mil': return !!(d.mil_std&&d.mil_std.indexOf('MIL-STD')>=0);
+    case 'exhaust': {var e=String(d.exhaust||'');return rule.val==='後'?/後|轉軸/.test(e):/側/.test(e);}
     case 'metal': { if(rule.val===0)return d.metal_status==='confirmed'&&parseInt(d.metal_count)===0; return d.metal_floor!==''&&d.metal_floor!=null&&parseInt(d.metal_floor)===rule.val; }
     case 'tgp': {var a=(String(d.gpu_tgp||'').match(/(\d+)\s*W/g)||[]).map(function(x){return parseInt(x);});return (a.length?Math.max.apply(null,a):0)>=rule.val;}
     case 'tdp': {var b=(String(d.cpu_tdp||'').match(/(\d+)\s*W/g)||[]).map(function(x){return parseInt(x);});return (b.length?Math.max.apply(null,b):0)>=rule.val;}
@@ -1334,6 +1344,7 @@ function apply(){
     if(F.milf.length&&!(d.mil_std&&d.mil_std.indexOf('MIL-STD')>=0))return false;
     if(F.tgpf.length){var mtg=String(d.gpu_tgp||'').match(/(\d+)\s*W/);var wtg=mtg?+mtg[1]:0;if(!F.tgpf.some(function(t){return t==='≥140W'?wtg>=140:wtg>=100;}))return false;}
     if(F.tdpf.length){var atd=(String(d.cpu_tdp||'').match(/(\d+)\s*W/g)||[]).map(function(x){return parseInt(x);});var wtd=atd.length?Math.max.apply(null,atd):0;if(!F.tdpf.some(function(t){return t==='≥95W'?wtd>=95:wtd>=45;}))return false;}
+    if(F.exhaust.length){var ex=String(d.exhaust||'');if(!ex)return false;if(!F.exhaust.some(function(v){return v==='後出風'?/後|轉軸/.test(ex):/側/.test(ex);}))return false;}
     // Free-text filters from 進階篩選 — multi-keyword AND
     if(!matchTokens(taF,d.target_audience))return false;
     if(!matchTokens(ucF,d.use_cases))return false;
