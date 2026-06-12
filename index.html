@@ -873,7 +873,8 @@ function parseQuery(raw){
   if(/防潑水|防潑/.test(q)){rules.push({type:'spill'});q=q.replace(/防潑水|防潑/g,'');}
   if(/掉下巴|下潛/.test(q)){rules.push({type:'dropjaw'});q=q.replace(/掉下巴|下潛/g,'');}
   if(/mil-?std|軍規|810/i.test(q)){rules.push({type:'mil'});q=q.replace(/mil-?std|軍規|810[a-z]?/gi,'');}
-  q=q.replace(/([一二三四1234])\s*金/g,function(_,n){var mp={'一':1,'二':2,'三':3,'四':4};rules.push({type:'metal',val:mp[n]||parseInt(n)});return'';});
+  if(/全塑膠|全塑/.test(q)){rules.push({type:'metal',val:0});q=q.replace(/全塑膠|全塑/g,'');}
+  q=q.replace(/([零一二三四0-4])\s*金/g,function(_,n){var mp={'零':0,'一':1,'二':2,'三':3,'四':4};var v=(n in mp)?mp[n]:parseInt(n);rules.push({type:'metal',val:v});return'';});
   var mtgp=q.match(/(?:tgp|解瓦)\s*([≥>=]*)\s*(\d+)\s*(w|瓦)?/i);
   if(mtgp&&(parseInt(mtgp[2])>=19||mtgp[1]||mtgp[3])){rules.push({type:'tgp',val:parseInt(mtgp[2])});q=q.replace(mtgp[0],' ');}
   else if(/高解瓦|高\s*tgp/i.test(q)){rules.push({type:'tgp',val:140});q=q.replace(/高解瓦|高\s*tgp/gi,' ');}
@@ -900,7 +901,7 @@ function applyRule(d,rule){
     case 'spill': return d.spill_resist==='有';
     case 'dropjaw': return d.drop_jaw==='有';
     case 'mil': return !!(d.mil_std&&d.mil_std.indexOf('MIL-STD')>=0);
-    case 'metal': return parseInt(d.metal_count)===rule.val;
+    case 'metal': { if(rule.val===0)return d.metal_status==='confirmed'&&parseInt(d.metal_count)===0; return d.metal_floor!==''&&d.metal_floor!=null&&parseInt(d.metal_floor)===rule.val; }
     case 'tgp': {var a=(String(d.gpu_tgp||'').match(/(\d+)\s*W/g)||[]).map(function(x){return parseInt(x);});return (a.length?Math.max.apply(null,a):0)>=rule.val;}
     case 'tdp': {var b=(String(d.cpu_tdp||'').match(/(\d+)\s*W/g)||[]).map(function(x){return parseInt(x);});return (b.length?Math.max.apply(null,b):0)>=rule.val;}
   }
@@ -1273,6 +1274,7 @@ function apply(){
   var qForParse=sortIntent?sortIntent.cleanedQuery:rawQ;
   var parsed=parseQuery(qForParse);
   var rules=parsed.rules, tokens=parsed.tokens;
+  var _mr=rules.find(function(r){return r.type==='metal';}); window.metalActive=_mr?_mr.val:null;
   var activePresetObj=activePreset?PRESETS.find(function(p){return p.id===activePreset;}):null;
 
   var wMinG=parseFloat(document.getElementById('wMinG').value)||0;
@@ -1374,6 +1376,7 @@ function apply(){
   }
 
   FD.sort(function(a,b){
+    if(window.metalActive!=null){var ga=a.metal_status==='confirmed'?0:1,gb=b.metal_status==='confirmed'?0:1;if(ga!==gb)return ga-gb;}
     if(effectiveSortC==='brand')return (a.brand+a.series).localeCompare(b.brand+b.series,'zh')*effectiveSortD;
     if(effectiveSortC==='weight_g')return cmpNum(pW(a), pW(b), effectiveSortD);
     if(effectiveSortC==='width_mm')return cmpNum(pX(a), pX(b), effectiveSortD);
@@ -1517,7 +1520,10 @@ function matBadge(materials){
 
 function renderCrd(){
   if(!FD.length){renderEmpty();return;}
+  var _lgC=null;
   var cards=FD.map(function(d,i){
+    var preC='';
+    if(window.metalActive!=null){var gC=d.metal_status==='confirmed'?'c':'p';if(gC!==_lgC){_lgC=gC;preC='<div style="grid-column:1/-1;font-weight:700;font-size:12.5px;padding:6px 2px;color:var(--text)">'+(gC==='c'?('✅ 確認 '+window.metalActive+' 件'):('🟡 待確認 ≥'+window.metalActive+' 件・前框待確認'))+'</div>';}}
     var head='<input class="card-chk" type="checkbox" '+(cmpSet.has(i)?'checked':'')+' onclick="event.stopPropagation();togCmp('+i+')" title="加入比較">'
       +'<div class="card-top"><div>'+bTag(d.brand)+' '+segTag(d.segment)+matBadge(d.materials)+'</div><span class="rt">'+esc(d.region)+'</span></div>'
       +'<div class="card-mdl">'+esc(d.model)+'</div>'
@@ -1538,6 +1544,8 @@ function renderCrd(){
       if(d.adapter_w)  rows.push(designRow('🔋','變壓器',trunc(d.adapter_w,30)));
       if(d.key_travel) rows.push(designRow('⌨','鍵程',trunc(d.key_travel,20)));
       if(d.mil_std)    rows.push(designRow('🛡','MIL',trunc(d.mil_std,28)));
+      if(d.metal_status)rows.push(designRow('🔩','幾金',d.metal_status==='confirmed'?(d.metal_count+'件 '+(d.metal_pos||'')):('≥'+d.metal_floor+'件 '+(d.metal_pos||'待確認'))));
+      if(d.exhaust)    rows.push(designRow('💨','出風口',trunc(d.exhaust,24)));
       body=rows.length?rows.join(''):'<div style="color:var(--text3);font-size:11px;padding:8px 0">— 無設計細節資料 —</div>';
     } else {
       // Spec view: X/Y/Z, weight, battery, CPU/GPU
@@ -1553,7 +1561,7 @@ function renderCrd(){
 
     var price=d.price_tw?'<div class="card-price">NT$'+esc(String(d.price_tw))+'</div>':'';
 
-    return '<div class="card'+(i===selIdx?' sel':'')+'" onclick="selItem('+i+')">'+head+body+price+'</div>';
+    return preC+'<div class="card'+(i===selIdx?' sel':'')+'" onclick="selItem('+i+')">'+head+body+price+'</div>';
   }).join('');
   document.getElementById('mc').innerHTML='<div class="cg">'+cards+'</div>';
 }
@@ -1595,8 +1603,11 @@ var shortDim = shortPending;
 function renderTbl(){
   if(!FD.length){renderEmpty();return;}
   var hdr='<tr><th class="chk"><input type="checkbox" onclick="togAllCmp(this)"></th><th>品牌</th><th>系列</th><th>型號</th><th>尺吋</th><th>重量 (g)</th><th title="寬度 mm">X · 寬</th><th title="深度 mm">Y · 長</th><th title="厚度 mm">Z · 厚</th><th>顏色</th><th>材質</th></tr>';
+  var _lgT=null;
   var rows=FD.map(function(d,i){
-    return '<tr class="dr'+(i===selIdx?' sel':'')+'" onclick="selItem('+i+')">'
+    var preT='';
+    if(window.metalActive!=null){var gT=d.metal_status==='confirmed'?'c':'p';if(gT!==_lgT){_lgT=gT;preT='<tr class="mgrp"><td colspan="11" style="background:rgba(120,140,180,.14);font-weight:700;font-size:12px;padding:7px 12px;color:var(--text)">'+(gT==='c'?('✅ 確認 '+window.metalActive+' 件'):('🟡 待確認 ≥'+window.metalActive+' 件・前框待確認'))+'</td></tr>';}}
+    return preT+'<tr class="dr'+(i===selIdx?' sel':'')+'" onclick="selItem('+i+')">'
       +'<td class="chk"><input type="checkbox" '+(cmpSet.has(i)?'checked':'')+' onclick="event.stopPropagation();togCmp('+i+')"></td>'
       +'<td>'+bTag(d.brand)+'</td>'
       +'<td title="'+esc(d.series)+'">'+esc(d.series)+'</td>'
@@ -1676,8 +1687,8 @@ function selItem(i){
     +r('變壓器重量',d.adapter_weight)
     +r('鍵程',d.key_travel)
     +r('防潑水鍵盤',d.spill_resist)
-    +r('金屬件數(幾金)',d.metal_count)
-    +r('金屬位置(ABCD)',d.metal_pos)
+    +r('金屬件數(幾金)',d.metal_status==='confirmed'?(d.metal_count+' 件 ✓ 確認'):(d.metal_status==='partial'?('≥'+d.metal_floor+' 件（前框待確認）'):''))
+    +r('金屬件位置',d.metal_pos)
     +r('出風口配置',d.exhaust);
 
   // ── 3. 效能 ──
