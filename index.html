@@ -879,28 +879,55 @@ function hasUnnegatedMatch(hay,tok){
     idx+=tok.length;
   }
 }
+// 找 re 在 q 裡第一次出現的位置前面(跳過空白)是否緊接著否定詞 沒有/非/無/不
+function negBefore(q,idx){
+  var j=idx-1;
+  while(j>=0&&/\s/.test(q[j]))j--;
+  if(j>=1&&q.slice(j-1,j+1)==='沒有')return{neg:true,start:j-1};
+  if(j>=0&&'非無不'.indexOf(q[j])>=0)return{neg:true,start:j};
+  return{neg:false,start:idx};
+}
 function parseQuery(raw){
   let q=raw.toLowerCase();
   const rules=[];
+  // 通用：偵測關鍵字 re，命中則連同前面否定詞一起從 q 移除，並用 buildRule(neg) 產生規則
+  function kw(re,buildRule){
+    var m=q.match(re);
+    if(!m)return false;
+    var nb=negBefore(q,m.index);
+    rules.push(buildRule(nb.neg));
+    q=q.slice(0,nb.start)+' '+q.slice(m.index+m[0].length);
+    return true;
+  }
   q=q.replace(/(\d+(?:\.\d+)?)\s*(?:kg|公斤)以下/g,function(_,n){rules.push({type:'maxW',val:parseFloat(n)*1000});return'';});
   q=q.replace(/(\d+)\s*g以下/g,function(_,n){rules.push({type:'maxW',val:parseFloat(n)});return'';});
   q=q.replace(/(\d+(?:\.\d+)?)\s*吋/g,function(_,n){rules.push({type:'inch',val:parseFloat(n)});return'';});
   q=q.replace(/(\d+)\s*wh以上/g,function(_,n){rules.push({type:'minB',val:parseFloat(n)});return'';});
-  if(/獨立顯卡|獨顯|dgpu|rtx/.test(q)){rules.push({type:'gpu',val:'dGPU'});q=q.replace(/獨立顯卡|獨顯|dgpu|rtx/g,'');}
-  if(/內顯|內建顯卡|igpu/.test(q)){rules.push({type:'gpu',val:'iGPU'});q=q.replace(/內顯|內建顯卡|igpu/g,'');}
-  if(/工作站/.test(q)){rules.push({type:'seg',val:['Commercial','Mobile WS']});q=q.replace(/工作站/g,'');}
-  if(/商用/.test(q)){rules.push({type:'seg',val:['Commercial']});q=q.replace(/商用/g,'');}
-  if(/電競/.test(q)){rules.push({type:'seg',val:['Gaming']});q=q.replace(/電競/g,'');}
-  if(/在售/.test(q)){rules.push({type:'status',val:'在售'});q=q.replace(/在售/g,'');}
-  if(/停售/.test(q)){rules.push({type:'status',val:'停售/改名'});q=q.replace(/停售/g,'');}
-  ['dell','hp','lenovo'].forEach(function(b){if(q.includes(b)){rules.push({type:'brand',val:b});q=q.replace(new RegExp(b,'g'),'');}});
-  if(/oled/.test(q)){rules.push({type:'oled'});q=q.replace(/oled/g,'');}
-  if(/防潑水|防潑/.test(q)){rules.push({type:'spill'});q=q.replace(/防潑水|防潑/g,'');}
-  if(/掉下巴|下潛/.test(q)){rules.push({type:'dropjaw'});q=q.replace(/掉下巴|下潛/g,'');}
-  if(/後出風|後方排風|後排風/.test(q)){rules.push({type:'exhaust',val:'後'});q=q.replace(/後出風|後方排風|後排風/g,'');}
-  if(/側出風|側方排風|側排風/.test(q)){rules.push({type:'exhaust',val:'側'});q=q.replace(/側出風|側方排風|側排風/g,'');}
-  if(/mil-?std|軍規|810/i.test(q)){rules.push({type:'mil'});q=q.replace(/mil-?std|軍規|810[a-z]?/gi,'');}
+  kw(/獨立顯卡|獨顯|dgpu|rtx/,function(neg){return{type:'gpu',val:'dGPU',neg:neg};});
+  kw(/內顯|內建顯卡|igpu/,function(neg){return{type:'gpu',val:'iGPU',neg:neg};});
+  kw(/工作站/,function(neg){return{type:'seg',val:['Commercial','Mobile WS'],neg:neg};});
+  kw(/商用/,function(neg){return{type:'seg',val:['Commercial'],neg:neg};});
+  kw(/電競/,function(neg){return{type:'seg',val:['Gaming'],neg:neg};});
+  kw(/在售/,function(neg){return{type:'status',val:'在售',neg:neg};});
+  kw(/停售/,function(neg){return{type:'status',val:'停售/改名',neg:neg};});
+  ['dell','hp','lenovo'].forEach(function(b){kw(new RegExp(b),function(neg){return{type:'brand',val:b,neg:neg};});});
+  kw(/oled/,function(neg){return{type:'oled',neg:neg};});
+  kw(/防潑水|防潑/,function(neg){return{type:'spill',neg:neg};});
+  kw(/掉下巴|下潛/,function(neg){return{type:'dropjaw',neg:neg};});
+  kw(/後出風|後方排風|後排風/,function(neg){return{type:'exhaust',val:'後',neg:neg};});
+  kw(/側出風|側方排風|側排風/,function(neg){return{type:'exhaust',val:'側',neg:neg};});
+  kw(/mil-?std|軍規|810/i,function(neg){return{type:'mil',neg:neg};});
+  // 指紋辨識：改接 fpBucket() 分類器，而非裸字比對(資料庫用語為英文 Yes/No，中文「指紋」字樣完全不存在)
+  kw(/指紋辨識|指紋/,function(neg){return{type:'fp',neg:neg};});
   if(/全塑膠|全塑/.test(q)){rules.push({type:'metal',val:0});q=q.replace(/全塑膠|全塑/g,'');}
+  // 材質：改接 detectMaterials() 分類器，中英文同義詞(鋁/aluminum等)一次辨識，且支援否定
+  // 順序須與 MAT_PATS 一致：碳纖/玻纖 要先於 玻璃 判斷，避免「玻璃纖維」被誤判成玻璃
+  kw(/塑膠|塑料/,function(neg){return{type:'material',val:'plastic',neg:neg};});
+  kw(/碳纖維|碳纖/,function(neg){return{type:'material',val:'carbon',neg:neg};});
+  kw(/玻璃纖維|玻纖/,function(neg){return{type:'material',val:'fiber',neg:neg};});
+  kw(/玻璃(?!纖)/,function(neg){return{type:'material',val:'glass',neg:neg};});
+  kw(/鎂合金|鎂/,function(neg){return{type:'material',val:'magnesium',neg:neg};});
+  kw(/鋁合金|鋁/,function(neg){return{type:'material',val:'aluminum',neg:neg};});
   q=q.replace(/([零一二三四0-4])\s*金/g,function(_,n){var mp={'零':0,'一':1,'二':2,'三':3,'四':4};var v=(n in mp)?mp[n]:parseInt(n);rules.push({type:'metal',val:v});return'';});
   var mtgp=q.match(/(?:tgp|解瓦)\s*([≥>=]*)\s*(\d+)\s*(w|瓦)?/i);
   if(mtgp&&(parseInt(mtgp[2])>=19||mtgp[1]||mtgp[3])){rules.push({type:'tgp',val:parseInt(mtgp[2])});q=q.replace(mtgp[0],' ');}
@@ -924,19 +951,23 @@ function parseQuery(raw){
   return{rules:rules,tokens:tokens};
 }
 function applyRule(d,rule){
+  // 具否定意義(neg)的規則：算出「肯定情況下的結果」r，再依 neg 決定要不要反轉
+  function n(r){return rule.neg?!r:r;}
   switch(rule.type){
     case 'maxW': return pW(d)<=rule.val;
     case 'inch': return Math.floor(parseFloat(d.screen_size||0))===Math.floor(rule.val);
     case 'minB': return pB(d)>=rule.val;
-    case 'gpu':  return d.gpu_type&&d.gpu_type.includes(rule.val);
-    case 'seg':  return rule.val.includes(d.segment);
-    case 'status': return d.status===rule.val;
-    case 'brand': return d.brand.toLowerCase()===rule.val;
-    case 'oled': return d.display_type&&d.display_type.toUpperCase().includes('OLED');
-    case 'spill': return d.spill_resist==='有';
-    case 'dropjaw': return d.drop_jaw==='有';
-    case 'mil': return !!(d.mil_std&&d.mil_std.indexOf('MIL-STD')>=0);
-    case 'exhaust': {var e=String(d.exhaust||'');return rule.val==='後'?/後|轉軸/.test(e):/側/.test(e);}
+    case 'gpu':  return n(!!(d.gpu_type&&d.gpu_type.includes(rule.val)));
+    case 'seg':  return n(rule.val.includes(d.segment));
+    case 'status': return n(d.status===rule.val);
+    case 'brand': return n(d.brand.toLowerCase()===rule.val);
+    case 'oled': return n(!!(d.display_type&&d.display_type.toUpperCase().includes('OLED')));
+    case 'spill': return n(d.spill_resist==='有');
+    case 'dropjaw': return n(d.drop_jaw==='有');
+    case 'mil': return n(!!(d.mil_std&&d.mil_std.indexOf('MIL-STD')>=0));
+    case 'fp': return n(fpBucket(d.fingerprint)!=='none');
+    case 'material': return n(detectMaterials(d.materials||'').indexOf(rule.val)>=0);
+    case 'exhaust': {var e=String(d.exhaust||'');return n(rule.val==='後'?/後|轉軸/.test(e):/側/.test(e));}
     case 'metal': { if(rule.val===0)return d.metal_status==='confirmed'&&parseInt(d.metal_count)===0; return d.metal_floor!==''&&d.metal_floor!=null&&parseInt(d.metal_floor)===rule.val; }
     case 'tgp': {var a=(String(d.gpu_tgp||'').match(/(\d+)\s*W/g)||[]).map(function(x){return parseInt(x);});return (a.length?Math.max.apply(null,a):0)>=rule.val;}
     case 'tdp': {var b=(String(d.cpu_tdp||'').match(/(\d+)\s*W/g)||[]).map(function(x){return parseInt(x);});return (b.length?Math.max.apply(null,b):0)>=rule.val;}
