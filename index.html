@@ -865,6 +865,20 @@ function parseSortIntent(raw){
   return{column:col,direction:dir,limit:10,cleanedQuery:cleaned};
 }
 
+// 找 tok 在 hay 裡是否有「未被否定詞修飾」的出現位置；跳過緊接在 非/無/不 之後的出現
+// 例：搜尋 "haptic" 不應命中 "機械式觸控板（非 Haptic）"
+function hasUnnegatedMatch(hay,tok){
+  var idx=0;
+  while(true){
+    idx=hay.indexOf(tok,idx);
+    if(idx===-1)return false;
+    var j=idx-1;
+    while(j>=0&&/\s/.test(hay[j]))j--;
+    var precededByNeg=j>=0&&'非無不'.indexOf(hay[j])!==-1;
+    if(!precededByNeg)return true;
+    idx+=tok.length;
+  }
+}
 function parseQuery(raw){
   let q=raw.toLowerCase();
   const rules=[];
@@ -1369,7 +1383,7 @@ function apply(){
     if(tokens.length){
       var hay=[d.brand,d.series,d.model,d.cpu_platform,d.gpu_type,d.dgpu_model,d.display_type,d.screen_size,d.region,d.status,
               d.materials,d.colors,d.keyboard,d.touchpad,d.thermal,d.fingerprint,d.benchmark_series,d.generation].join(' ').toLowerCase();
-      if(!tokens.every(function(t){return hay.includes(t);}))return false;
+      if(!tokens.every(function(t){return hasUnnegatedMatch(hay,t);}))return false;
     }
     if(activePresetObj&&!activePresetObj.fn(d))return false;
     return true;
