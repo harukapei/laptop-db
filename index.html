@@ -759,10 +759,10 @@ const F={q:'',brand:[],screen:[],screenType:[],cpu:[],gpu:[],status:[],region:[]
 const PRESETS=[
   {id:'p1', icon:'⚡', label:'輕薄 <1.5kg',  fn:d=>pW(d)<1500},
   {id:'p2', icon:'🏋', label:'2kg以下',       fn:d=>pW(d)<2000},
-  {id:'p3', icon:'🖥', label:'有獨立顯卡(RTX)', fn:d=>d.gpu_type&&d.gpu_type.includes('dGPU')},
+  {id:'p3', icon:'🖥', label:'有獨立顯卡(RTX)', fn:d=>hasDGPU(d)},
   {id:'p4', icon:'💼', label:'工作站等級',     fn:d=>d.segment==='Commercial'||d.segment==='Mobile WS'},
   {id:'p5', icon:'📺', label:'大螢幕 ≥17吋',  fn:d=>parseFloat(d.screen_size)>=17},
-  {id:'p6', icon:'📺', label:'18吋+獨顯',     fn:d=>parseFloat(d.screen_size)>=18&&d.gpu_type&&d.gpu_type.includes('dGPU')},
+  {id:'p6', icon:'📺', label:'18吋+獨顯',     fn:d=>parseFloat(d.screen_size)>=18&&hasDGPU(d)},
   {id:'p7', icon:'🔋', label:'長電池 ≥86Wh', fn:d=>pB(d)>=86},
   {id:'p8', icon:'✨', label:'OLED螢幕',      fn:d=>d.display_type&&d.display_type.toUpperCase().includes('OLED')},
   {id:'p9', icon:'🎮', label:'電競機種',       fn:d=>d.segment==='Gaming'},
@@ -957,7 +957,7 @@ function applyRule(d,rule){
     case 'maxW': return pW(d)<=rule.val;
     case 'inch': return Math.floor(parseFloat(d.screen_size||0))===Math.floor(rule.val);
     case 'minB': return pB(d)>=rule.val;
-    case 'gpu':  return n(!!(d.gpu_type&&d.gpu_type.includes(rule.val)));
+    case 'gpu': return n(rule.val==='dGPU'?hasDGPU(d):!!(d.gpu_type&&d.gpu_type.includes(rule.val)));
     case 'seg':  return n(rule.val.includes(d.segment));
     case 'status': return n(d.status===rule.val);
     case 'brand': return n(d.brand.toLowerCase()===rule.val);
@@ -1237,6 +1237,16 @@ function copilotBucket(t){
   if(t.indexOf('Yes')===0)return 'yes';
   if(t.indexOf('No')===0)return 'no';
   return null;
+}
+// 判斷這台是否有獨立顯卡：gpu_type含Discrete/dGPU/RTX/GeForce/Quadro等關鍵字(條件A)，
+// 或 dgpu_model欄有實質內容而非None/-/待補等「無」的意思(條件B)，兩者任一成立即算有獨顯。
+// (原本多處只認gpu_type逐字含"dGPU"，漏接了寫"Discrete"或直接寫GPU品牌型號的機型，如Dell工作站系列)
+function hasDGPU(d){
+  var gt=String(d.gpu_type||'');
+  var dm=String(d.dgpu_model||'').trim();
+  var condA=/discrete|dgpu|rtx|geforce|quadro/i.test(gt);
+  var condB=!!dm&&!/^(none|-|—|n\/a|無|待補|待驗證)/i.test(dm);
+  return condA||condB;
 }
 // Classify fingerprint text into 3 buckets
 function fpBucket(t){
@@ -1623,7 +1633,7 @@ function renderCrd(){
         +'<div class="cs"><div class="csl">X · 寬</div><div class="csv">'+esc(d.width_mm||'—')+'mm</div></div>'
         +'<div class="cs"><div class="csl">Y · 長</div><div class="csv">'+esc(d.depth_mm||'—')+'mm</div></div>'
         +'<div class="cs"><div class="csl">Z · 厚</div><div class="csv">'+esc(d.thickness_mm||'—')+'mm</div></div>'
-        +'<div class="cs"><div class="csl">顯卡</div><div class="csv'+(d.gpu_type&&d.gpu_type.includes('dGPU')?' gpu-yes':'')+'">'+esc(d.gpu_type||'—')+'</div></div>'
+        +'<div class="cs"><div class="csl">顯卡</div><div class="csv'+(hasDGPU(d)?' gpu-yes':'')+'">'+esc(d.gpu_type||'—')+'</div></div>'
         +'</div>';
     }
 
@@ -1716,7 +1726,7 @@ function selItem(i){
   function sec(title,inner){return inner?'<div class="dp-sec"><div class="dp-sec-t">'+title+'</div>'+inner+'</div>':'';}
 
   // GPU rendering with badge
-  var hasGPU=d.gpu_type&&d.gpu_type.includes('dGPU');
+  var hasGPU=hasDGPU(d);
   var gpuHtml=hasGPU
     ?'<span class="dp-v gpu-badge">● 有獨立顯卡'+(d.dgpu_model?' — '+esc(d.dgpu_model):'')+'</span>'
     :'<span class="dp-v no-gpu">無獨立顯卡 ('+esc(d.gpu_type||'—')+')</span>';
@@ -1849,7 +1859,7 @@ function openCmp(){
   var FIELDS=[['型號','model'],['品牌','brand'],['系列','series'],['狀態','status'],['市場','region'],['客群','segment'],['重量 (g)','weight_g'],['X · 寬 (mm)','width_mm'],['Y · 長 (mm)','depth_mm'],['Z · 厚 (mm)','thickness_mm'],['螢幕尺寸','screen_size'],['螢幕種類','display_type'],['解析度','resolution'],['Form Factor','form_factor'],['CPU平台','cpu_platform'],['GPU類型','gpu_type'],['獨顯型號','dgpu_model'],['電池 (Wh)','battery_wh'],['前鏡頭','webcam'],['數字鍵區','numpad'],['左側I/O','io_left'],['右側I/O','io_right'],['NT$ MSRP','price_tw'],['US$ MSRP','price_us'],['上市年份','year'],['最後核實','last_verified'],['掉下巴IO','drop_jaw'],['GPU TGP(額定)','gpu_tgp'],['CPU TDP(額定)','cpu_tdp'],['解瓦實測(NBC)','jiewa_measured'],['變壓器瓦數','adapter_w'],['鍵程','key_travel'],['防潑水鍵盤','spill_resist'],['MIL-STD','mil_std'],['屏占比','screen_body_ratio'],['IP等級','ip_rating'],['金屬件數','metal_count']];
   var hdr='<tr><th>規格項目</th>'+items.map(function(d){return '<td>'+bTag(d.brand)+' '+esc(d.model)+'</td>';}).join('')+'</tr>';
   var rows=FIELDS.map(function(fl){
-    var cells=items.map(function(d){var v=String(d[fl[1]]||'—');return v.includes('dGPU')?'<td class="hi">● '+esc(v)+'</td>':'<td>'+esc(v)+'</td>';}).join('');
+    var cells=items.map(function(d){var v=String(d[fl[1]]||'—');var hi=fl[1]==='gpu_type'&&hasDGPU(d);return hi?'<td class="hi">● '+esc(v)+'</td>':'<td>'+esc(v)+'</td>';}).join('');
     return '<tr><th>'+esc(fl[0])+'</th>'+cells+'</tr>';
   }).join('');
   document.getElementById('cmpContent').innerHTML='<table class="cmp-table"><thead>'+hdr+'</thead><tbody>'+rows+'</tbody></table>';
