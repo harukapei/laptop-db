@@ -1014,7 +1014,7 @@ function initUI(){
     {label:'dGPU / 獨顯', val:'dGPU'},
     {label:'iGPU + dGPU', val:'iGPU+dGPU'},
   ];
-  var gpuItems=gpuCandidates.filter(function(it){return ALL.some(function(d){return d.gpu_type===it.val;});});
+  var gpuItems=gpuCandidates.filter(function(it){return ALL.some(function(d){return gpuBucket(d).indexOf(it.val)>=0;});});
   document.getElementById('gpuP').innerHTML=gpuItems.map(function(item){
     return '<div class="pill" data-val="'+item.val+'" onclick="togGpu(this,\''+item.val+'\')">'+esc(item.label)+'</div>';
   }).join('');
@@ -1248,6 +1248,16 @@ function hasDGPU(d){
   var condB=!!dm&&!/^(none|-|—|n\/a|無|待補|待驗證)/i.test(dm);
   return condA||condB;
 }
+// 顯示晶片篩選(iGPU/dGPU/iGPU+dGPU三個核取方塊)用的分類：
+// 回傳這台符合哪些桶(可能同時符合dGPU與iGPU+dGPU)。
+// 原邏輯要求 gpu_type 逐字完全等於篩選值(如"dGPU")，只認得294筆裡的4筆，
+// 漏接了寫"Discrete"、具體GPU品牌型號、或"Discrete + Integrated"等其他寫法的機型。
+function gpuBucket(d){
+  if(!hasDGPU(d))return['iGPU'];
+  // 有獨顯的情況下，若gpu_type本身有提及iGPU/Integrated，代表官方文件明確標示為混合式(可切換)
+  if(/igpu|integrated/i.test(String(d.gpu_type||'')))return['dGPU','iGPU+dGPU'];
+  return['dGPU'];
+}
 // Classify fingerprint text into 3 buckets
 function fpBucket(t){
   t=String(t||'').trim();
@@ -1390,7 +1400,7 @@ function apply(){
     if(F.series&&d.series!==F.series)return false;
     if(F.screen.length&&!F.screen.some(function(s){return Math.floor(parseFloat(d.screen_size||0))===s;}))return false;
     if(F.cpu.length&&!F.cpu.some(function(c){return d.cpu_platform&&d.cpu_platform.includes(c);}))return false;
-    if(F.gpu.length&&!F.gpu.includes(d.gpu_type))return false;
+    if(F.gpu.length&&!F.gpu.some(function(v){return gpuBucket(d).indexOf(v)>=0;}))return false;
     if(F.screenType.length&&!F.screenType.some(function(v){return screenTypeMatch(d,v);}))return false;
     if(F.year.length&&!F.year.includes(String(d.year||'').trim()))return false;
     if(F.status.length&&!F.status.includes(d.status))return false;
