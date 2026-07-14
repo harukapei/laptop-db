@@ -1417,7 +1417,7 @@ function apply(){
     if(F.bench.length&&!F.bench.includes(d.benchmark_series))return false;
     if(F.copilot.length&&!F.copilot.includes(copilotBucket(d.copilot_plus)))return false;
     if(F.djaw.length&&!F.djaw.includes(d.drop_jaw))return false;
-    if(F.spill.length&&d.spill_resist!=='有')return false;
+    if(F.spill.length&&!/^有/.test(String(d.spill_resist||'')))return false;
     if(F.milf.length&&!(d.mil_std&&d.mil_std.indexOf('MIL-STD')>=0))return false;
     if(F.tgpf.length){var mtg=String(d.gpu_tgp||'').match(/(\d+)\s*W/);var wtg=mtg?+mtg[1]:0;if(!F.tgpf.some(function(t){return t==='≥140W'?wtg>=140:wtg>=100;}))return false;}
     if(F.tdpf.length){var atd=(String(d.cpu_tdp||'').match(/(\d+)\s*W/g)||[]).map(function(x){return parseInt(x);});var wtd=atd.length?Math.max.apply(null,atd):0;if(!F.tdpf.some(function(t){return t==='≥95W'?wtd>=95:wtd>=45;}))return false;}
