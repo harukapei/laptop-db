@@ -1847,7 +1847,7 @@ function renderTbl(){
       +'<td class="chk"><input type="checkbox" '+(cmpSet.has(i)?'checked':'')+' onclick="event.stopPropagation();togCmp('+i+')"></td>'
       +'<td>'+bTag(d.brand)+'</td>'
       +'<td title="'+esc(d.series)+'">'+esc(d.series)+'</td>'
-      +'<td title="'+esc(d.model)+'">'+esc(d.model)+' '+stsTag(d.status)+'</td>'
+      +'<td title="'+esc(d.model)+'">'+stsTag(d.status)+' '+esc(d.model)+'</td>'
       +'<td title="'+esc(d.screen_size||'')+(d.display_type?' · '+esc(d.display_type):'')+'">'+esc(dispScreenHomepage(d.screen_size))+'</td>'
       +'<td title="'+esc(d.weight_g||'')+'">'+esc(dispWeightHomepage(d.weight_g))+'</td>'
       +'<td title="'+esc(d.width_mm||'寬度 (mm)')+'">'+esc(shortPending(d.width_mm))+'</td>'
