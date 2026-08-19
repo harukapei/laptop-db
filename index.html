@@ -1811,14 +1811,14 @@ function shortPending(v){
 // Backward-compat alias (shortDim was the original name used in XYZ cells)
 var shortDim = shortPending;
 
-// 首頁精簡呈現：螢幕尺吋(去除多餘.0與重複單位符號)，完整原文仍在title與詳情卡片
+// 首頁精簡呈現：螢幕尺吋往下取整數(跟側邊欄尺吋篩選桶用同一套Math.floor邏輯，避免首頁顯示跟篩選結果對不起來)，完整原文仍在title與詳情卡片
 function dispScreenHomepage(v){
   var p=shortPending(v);
   if(p!==v)return p; // 待補類，交給shortPending的短標籤
   var s=String(v||'');
   var m=s.match(/(\d+(?:\.\d+)?)/);
   if(!m)return s||'—';
-  var n=parseFloat(m[1]);
+  var n=Math.floor(parseFloat(m[1]));
   return String(n)+'"';
 }
 // 首頁精簡呈現：重量(取最小/起始數值換算kg，多值或範圍加註「起」)，完整原文仍在title與詳情卡片
