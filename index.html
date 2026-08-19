@@ -1811,6 +1811,31 @@ function shortPending(v){
 // Backward-compat alias (shortDim was the original name used in XYZ cells)
 var shortDim = shortPending;
 
+// 首頁精簡呈現：螢幕尺吋(去除多餘.0與重複單位符號)，完整原文仍在title與詳情卡片
+function dispScreenHomepage(v){
+  var p=shortPending(v);
+  if(p!==v)return p; // 待補類，交給shortPending的短標籤
+  var s=String(v||'');
+  var m=s.match(/(\d+(?:\.\d+)?)/);
+  if(!m)return s||'—';
+  var n=parseFloat(m[1]);
+  return String(n)+'"';
+}
+// 首頁精簡呈現：重量(取最小/起始數值換算kg，多值或範圍加註「起」)，完整原文仍在title與詳情卡片
+function dispWeightHomepage(v){
+  var p=shortPending(v);
+  if(p!==v)return p;
+  var s=String(v||'');
+  var nums=(s.match(/\d+(?:\.\d+)?/g)||[]).map(Number).filter(function(x){return x>50;});
+  if(!nums.length)return s||'—';
+  var g=Math.min.apply(null,nums);
+  var kg=(g/1000).toFixed(2).replace(/0+$/,'').replace(/\.$/,'');
+  var sameSignal=/相同|皆同|一致|皆為/.test(s);
+  var rangeSignal=!sameSignal&&/起始|Starting|依配置|依SKU|視配置|視SKU/i.test(s);
+  var isRange=nums.length>1||rangeSignal;
+  return kg+' kg'+(isRange?' 起':'');
+}
+
 function renderTbl(){
   if(!FD.length){renderEmpty();return;}
   var hdr='<tr><th class="chk"><input type="checkbox" onclick="togAllCmp(this)"></th><th>品牌</th><th>系列</th><th>型號</th><th>尺吋</th><th>重量 (g)</th><th title="寬度 mm">X · 寬</th><th title="深度 mm">Y · 長</th><th title="厚度 mm">Z · 厚</th><th>顏色</th><th>材質</th></tr>';
@@ -1823,8 +1848,8 @@ function renderTbl(){
       +'<td>'+bTag(d.brand)+'</td>'
       +'<td title="'+esc(d.series)+'">'+esc(d.series)+'</td>'
       +'<td title="'+esc(d.model)+'">'+esc(d.model)+' '+stsTag(d.status)+'</td>'
-      +'<td title="'+esc(d.display_type||'')+'">'+esc(d.screen_size)+'"</td>'
-      +'<td title="'+esc(d.weight_g||'')+'">'+esc(shortPending(d.weight_g))+'</td>'
+      +'<td title="'+esc(d.screen_size||'')+(d.display_type?' · '+esc(d.display_type):'')+'">'+esc(dispScreenHomepage(d.screen_size))+'</td>'
+      +'<td title="'+esc(d.weight_g||'')+'">'+esc(dispWeightHomepage(d.weight_g))+'</td>'
       +'<td title="'+esc(d.width_mm||'寬度 (mm)')+'">'+esc(shortPending(d.width_mm))+'</td>'
       +'<td title="'+esc(d.depth_mm||'深度 (mm)')+'">'+esc(shortPending(d.depth_mm))+'</td>'
       +'<td title="'+esc(d.thickness_mm||'厚度 (mm)')+'">'+esc(shortPending(d.thickness_mm))+'</td>'
@@ -1865,11 +1890,11 @@ function selItem(i){
     :'<span class="dp-v no-gpu">無獨立顯卡 ('+esc(d.gpu_type||'—')+')</span>';
 
   // ── 1. ⭐ 物理規格 ──
-  var physical=r('重量',d.weight_g?d.weight_g+' g':'')
+  var physical=r('重量',d.weight_g?String(d.weight_g)+(/[a-zA-Z一-鿿]/.test(String(d.weight_g))?'':' g'):'')
     +r('X · 寬',d.width_mm?d.width_mm+' mm':'')
     +r('Y · 長',d.depth_mm?d.depth_mm+' mm':'')
     +r('Z · 厚',d.thickness_mm?d.thickness_mm+' mm':'')
-    +r('螢幕尺寸',d.screen_size?d.screen_size+'"':'')
+    +r('螢幕尺寸',d.screen_size?(/["吋]/.test(String(d.screen_size))?String(d.screen_size):String(d.screen_size)+'"'):'')
     +r('螢幕種類',d.display_type)
     +r('解析度',d.resolution)
     +r('Form Factor',d.form_factor);
