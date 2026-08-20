@@ -1843,6 +1843,15 @@ function shortPending(v){
 // Backward-compat alias (shortDim was the original name used in XYZ cells)
 var shortDim = shortPending;
 
+// 判斷欄位值是不是真的URL(而不是"待補"之類的佔位字串)，避免把待補值渲染成連結(404)
+function isRealUrl(v){
+  if(!v)return false;
+  var s=String(v).trim();
+  if(/^待(驗證|補|估|確認)/.test(s))return false;
+  if(s==='-'||s==='—')return false;
+  return /^https?:\/\//i.test(s);
+}
+
 // 首頁精簡呈現：螢幕尺吋往下取整數(跟側邊欄尺吋篩選桶用同一套Math.floor邏輯，避免首頁顯示跟篩選結果對不起來)，完整原文仍在title與詳情卡片
 function dispScreenHomepage(v){
   var p=shortPending(v);
@@ -1996,8 +2005,8 @@ function selItem(i){
 
   // ── 6. 資料來源 (collapsed by default via <details>) ──
   var sourceInner=
-    (d.url_tw?'<div class="dp-row"><span class="dp-k">TW 官網</span><a class="dp-v" style="color:var(--accent);text-decoration:none" href="'+esc(d.url_tw)+'" target="_blank" rel="noopener">連結 ↗</a></div>':'')
-    +(d.url_us?'<div class="dp-row"><span class="dp-k">US 官網</span><a class="dp-v" style="color:var(--accent);text-decoration:none" href="'+esc(d.url_us)+'" target="_blank" rel="noopener">連結 ↗</a></div>':'')
+    (isRealUrl(d.url_tw)?'<div class="dp-row"><span class="dp-k">TW 官網</span><a class="dp-v" style="color:var(--accent);text-decoration:none" href="'+esc(d.url_tw)+'" target="_blank" rel="noopener">連結 ↗</a></div>':(d.url_tw?'<div class="dp-row"><span class="dp-k">TW 官網</span><span class="dp-v">'+esc(d.url_tw)+'</span></div>':''))
+    +(isRealUrl(d.url_us)?'<div class="dp-row"><span class="dp-k">US 官網</span><a class="dp-v" style="color:var(--accent);text-decoration:none" href="'+esc(d.url_us)+'" target="_blank" rel="noopener">連結 ↗</a></div>':(d.url_us?'<div class="dp-row"><span class="dp-k">US 官網</span><span class="dp-v">'+esc(d.url_us)+'</span></div>':''))
     +longRow('散熱/觸控板來源',d.thermal_touchpad_source,80)
     +longRow('補充資料來源',d.source_extra,80)
     +r('最後核實',d.last_verified)
@@ -2020,8 +2029,8 @@ function selItem(i){
       +'</div>'
       :'');
 
-  // Primary action button: prefer TW URL, fallback US
-  var url=d.url_tw||d.url_us;
+  // Primary action button: prefer TW URL, fallback US (skip placeholder values like "待補")
+  var url=isRealUrl(d.url_tw)?d.url_tw:(isRealUrl(d.url_us)?d.url_us:null);
   document.getElementById('dpAct').innerHTML=url?'<a href="'+esc(url)+'" target="_blank" rel="noopener" class="dp-link">前往官方網頁 ↗</a>':'';
 
   document.getElementById('dp').classList.add('open');
