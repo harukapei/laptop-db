@@ -2063,6 +2063,18 @@ var SERIES_INFO=[{"brand":"Dell","series":"Alienware 15","old":"Alienware 15(201
 
 var SERIES_STATUS_CLASS={"確認改名":"st-rename","確認改名(過渡中)":"st-rename","確認未變更":"st-stable","全新產品線":"st-new","待驗證(已查證,證據不足)":"st-uncertain","證據矛盾":"st-conflict"};
 
+// 表格版的展開/收合說明欄，重用既有的toggleEx()
+function longCell(text, maxChars){
+  text=String(text||'');
+  maxChars=maxChars||50;
+  if(text.length<=maxChars)return esc(text);
+  var id='sex'+(++_exId);
+  return '<span id="'+id+'_s">'+esc(text.substring(0,maxChars).trim())
+      +'<span class="dp-expand-inline" onclick="event.stopPropagation();toggleEx(\''+id+'\')">… 展開</span></span>'
+    +'<span id="'+id+'_f" style="display:none">'+esc(text)
+      +' <span class="dp-expand-inline" onclick="event.stopPropagation();toggleEx(\''+id+'\')">收合 ▴</span></span>';
+}
+
 function renderSeriesInfo(){
   var brands=['Dell','HP','Lenovo'];
   var html='';
@@ -2077,7 +2089,7 @@ function renderSeriesInfo(){
         +'<td><b>'+esc(x.series)+'</b></td>'
         +'<td>'+esc(x.old)+'</td>'
         +'<td><span class="st-badge '+cls+'">'+esc(x.status)+'</span></td>'
-        +'<td class="snote">'+esc(x.note)+'</td>'
+        +'<td class="snote">'+longCell(x.note,50)+'</td>'
         +'<td>'+x.count+'</td>'
         +'<td class="ssrc">'+srcHtml+'</td>'
         +'</tr>';
