@@ -197,6 +197,8 @@ select.sf-sel:focus{border-color:var(--accent);background:#fff}
 
 /* TABLE */
 .tw{background:var(--surface);border-radius:8px;border:1px solid var(--border)}
+/* X·寬/Y·長/Z·厚欄位(第7-9欄)：內容偶爾是2-in-1平板/鍵盤拆解的長文字，改用斷行呈現，避免撐開整欄寬度 */
+.tw td:nth-child(7),.tw td:nth-child(8),.tw td:nth-child(9){white-space:normal;word-break:break-word;overflow-wrap:break-word;max-width:120px;overflow:visible;text-overflow:initial}
 table{width:100%;border-collapse:collapse;min-width:920px}
 thead{background:var(--surface2);position:sticky;top:0;z-index:2}
 thead th:first-child{border-top-left-radius:8px}
