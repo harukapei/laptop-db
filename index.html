@@ -1862,19 +1862,31 @@ function dispScreenHomepage(v){
   var n=Math.floor(parseFloat(m[1]));
   return String(n)+'"';
 }
-// 首頁精簡呈現：重量(取最小/起始數值換算kg，多值或範圍加註「起」)，完整原文仍在title與詳情卡片
+// 首頁精簡呈現：重量(取headline/起始數值換算kg，多值或範圍加註「起」)，完整原文仍在title與詳情卡片
+// 只抓「數字緊接kg/g單位」的組合，避免誤抓電池Wh、變壓器W瓦數等不相關數字(如"56Wh電池"的56)。
+// 取「字串裡第一個」符合的數字(而非最小值)——這個資料庫的慣例是把headline/起始值寫在最前面，
+// 括號內才是配置細節或2-in-1平板/鍵盤單獨重量之類的補充拆解，取最小值反而會誤抓成拆解後的小數字。
 function dispWeightHomepage(v){
   var p=shortPending(v);
   if(p!==v)return p;
   var s=String(v||'');
-  var nums=(s.match(/\d+(?:\.\d+)?/g)||[]).map(Number).filter(function(x){return x>50;});
-  if(!nums.length)return s||'—';
-  var g=Math.min.apply(null,nums);
+  var g=null, isRangePattern=false;
+  var rangeMatch=s.match(/(\d+(?:\.\d+)?)\s*[–\-~至]\s*(\d+(?:\.\d+)?)\s*(kg|g)\b/i);
+  if(rangeMatch){
+    var unit=rangeMatch[3].toLowerCase();
+    g=parseFloat(rangeMatch[1])*(unit==='kg'?1000:1);
+    isRangePattern=true;
+  }else{
+    var singleMatch=s.match(/(\d+(?:\.\d+)?)\s*(kg|g)\b/i);
+    if(singleMatch){
+      g=parseFloat(singleMatch[1])*(singleMatch[2].toLowerCase()==='kg'?1000:1);
+    }
+  }
+  if(g===null)return s||'—';
   var kg=(g/1000).toFixed(2).replace(/0+$/,'').replace(/\.$/,'');
   var sameSignal=/相同|皆同|一致|皆為/.test(s);
-  var rangeSignal=!sameSignal&&/起始|Starting|依配置|依SKU|視配置|視SKU/i.test(s);
-  var isRange=nums.length>1||rangeSignal;
-  return kg+' kg'+(isRange?' 起':'');
+  var rangeSignal=!sameSignal&&(isRangePattern||/起始|Starting|依配置|依SKU|視配置|視SKU/i.test(s));
+  return kg+' kg'+(rangeSignal?' 起':'');
 }
 
 function renderTbl(){
