@@ -199,6 +199,9 @@ select.sf-sel:focus{border-color:var(--accent);background:#fff}
 .tw{background:var(--surface);border-radius:8px;border:1px solid var(--border)}
 /* X·寬/Y·長/Z·厚欄位(第7-9欄)：內容偶爾是2-in-1平板/鍵盤拆解的長文字，改用斷行呈現，避免撐開整欄寬度 */
 .tw td:nth-child(7),.tw td:nth-child(8),.tw td:nth-child(9){white-space:normal;word-break:break-word;overflow-wrap:break-word;max-width:120px;overflow:visible;text-overflow:initial}
+/* 系列欄(第3欄)：括號註記(將被XX取代/過渡舊機)另起一行呈現，不要跟主系列名擠在同一行 */
+.tw td:nth-child(3){white-space:normal;overflow:visible;text-overflow:initial;max-width:180px}
+.series-note{color:var(--text3);font-size:11px}
 table{width:100%;border-collapse:collapse;min-width:920px}
 thead{background:var(--surface2);position:sticky;top:0;z-index:2}
 thead th:first-child{border-top-left-radius:8px}
@@ -1864,6 +1867,13 @@ function dispScreenHomepage(v){
   var n=Math.floor(parseFloat(m[1]));
   return String(n)+'"';
 }
+// 系列欄：遇到括號註記(如「(將被OmniBook X取代)」「(過渡舊機)」)就在括號前斷行，避免整段擠在一行
+function seriesBreak(s){
+  s=String(s||'');
+  var m=s.match(/^([^（(]+)([（(].+)$/);
+  if(!m)return esc(s);
+  return esc(m[1].trim())+'<br><span class="series-note">'+esc(m[2])+'</span>';
+}
 // 首頁精簡呈現：重量(取headline/起始數值換算kg，多值或範圍加註「起」)，完整原文仍在title與詳情卡片
 // 只抓「數字緊接kg/g單位」的組合，避免誤抓電池Wh、變壓器W瓦數等不相關數字(如"56Wh電池"的56)。
 // 取「字串裡第一個」符合的數字(而非最小值)——這個資料庫的慣例是把headline/起始值寫在最前面，
@@ -1907,7 +1917,7 @@ function renderTbl(){
     return preT+'<tr class="dr'+(i===selIdx?' sel':'')+'" onclick="selItem('+i+')">'
       +'<td class="chk"><input type="checkbox" '+(cmpSet.has(i)?'checked':'')+' onclick="event.stopPropagation();togCmp('+i+')"></td>'
       +'<td>'+bTag(d.brand)+'</td>'
-      +'<td title="'+esc(d.series)+'">'+esc(d.series)+'</td>'
+      +'<td title="'+esc(d.series)+'">'+seriesBreak(d.series)+'</td>'
       +'<td title="'+esc(d.model)+'">'+stsTag(d.status)+' '+esc(d.model)+'</td>'
       +'<td title="'+esc(d.screen_size||'')+(d.display_type?' · '+esc(d.display_type):'')+'">'+esc(dispScreenHomepage(d.screen_size))+'</td>'
       +'<td title="'+esc(d.weight_g||'')+'">'+esc(dispWeightHomepage(d.weight_g))+'</td>'
