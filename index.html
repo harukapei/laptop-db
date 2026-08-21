@@ -1880,6 +1880,12 @@ function dispWeightHomepage(v){
     var singleMatch=s.match(/(\d+(?:\.\d+)?)\s*(kg|g)\b/i);
     if(singleMatch){
       g=parseFloat(singleMatch[1])*(singleMatch[2].toLowerCase()==='kg'?1000:1);
+    }else{
+      var leadingNum=s.trim().match(/^(\d+(?:\.\d+)?)/);
+      if(leadingNum && !/kg|g\b/i.test(s)){
+        // 開頭是數字、但字串裡完全沒出現任何g/kg單位文字——欄位本身是weight_g(克)，比照慣例當作克數
+        g=parseFloat(leadingNum[1]);
+      }
     }
   }
   if(g===null)return s||'—';
@@ -1891,7 +1897,7 @@ function dispWeightHomepage(v){
 
 function renderTbl(){
   if(!FD.length){renderEmpty();return;}
-  var hdr='<tr><th class="chk"><input type="checkbox" onclick="togAllCmp(this)"></th><th>品牌</th><th>系列</th><th>型號</th><th>尺吋</th><th>重量 (g)</th><th title="寬度 mm">X · 寬</th><th title="深度 mm">Y · 長</th><th title="厚度 mm">Z · 厚</th><th>顏色</th><th>材質</th></tr>';
+  var hdr='<tr><th class="chk"><input type="checkbox" onclick="togAllCmp(this)"></th><th>品牌</th><th>系列</th><th>型號</th><th>尺吋</th><th>重量 (kg)</th><th title="寬度 mm">X · 寬</th><th title="深度 mm">Y · 長</th><th title="厚度 mm">Z · 厚</th><th>顏色</th><th>材質</th></tr>';
   var _lgT=null;
   var rows=FD.map(function(d,i){
     var preT='';
